@@ -2,6 +2,27 @@
 
 An autonomous AI security scanner that tests LLM systems for prompt injection vulnerabilities using attack techniques.
 
+[![npm version](https://img.shields.io/npm/v/zeroleaks.svg)](https://www.npmjs.com/package/zeroleaks)
+[![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
+
+## Why ZeroLeaks?
+
+Your system prompts contain proprietary instructions, business logic, and sensitive configurations. Attackers use prompt injection to extract this data. ZeroLeaks simulates real-world attacks to find vulnerabilities before they do.
+
+## Open Source vs Hosted
+
+| | **Open Source** | **Hosted (zeroleaks.ai)** |
+|---|---|---|
+| **Price** | Free | From $0/mo |
+| **Setup** | Self-hosted, bring your own API keys | Zero configuration |
+| **Scans** | Unlimited | Free tier: 3/mo, Startup: Unlimited |
+| **Reports** | JSON output | Interactive dashboard + PDF exports |
+| **History** | Manual tracking | Full scan history & trends |
+| **Support** | Community | Priority support |
+| **Updates** | Manual | Automatic |
+
+**[Try the hosted version →](https://zeroleaks.ai)**
+
 ## Features
 
 - **Multi-Agent Architecture**: Strategist, Attacker, Evaluator, and Mutator agents work together
@@ -10,10 +31,22 @@ An autonomous AI security scanner that tests LLM systems for prompt injection vu
 - **Research-Backed**: Incorporates CVE-documented vulnerabilities and academic research
 - **Defense Analysis**: Identifies defense patterns and recommends improvements
 
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Runtime | [Bun](https://bun.sh) / Node.js |
+| Language | TypeScript |
+| LLM Provider | [OpenRouter](https://openrouter.ai) (Claude, GPT-4, etc.) |
+| AI SDK | [Vercel AI SDK](https://sdk.vercel.ai) |
+| Architecture | Multi-agent orchestration |
+
 ## Installation
 
 ```bash
 bun add zeroleaks
+# or
+npm install zeroleaks
 ```
 
 ## Quick Start
@@ -32,6 +65,9 @@ console.log(`Score: ${result.overallScore}/100`);
 ## CLI Usage
 
 ```bash
+# Set your API key
+export OPENROUTER_API_KEY=sk-or-...
+
 # Scan a system prompt
 zeroleaks scan --prompt "You are a helpful assistant..."
 
@@ -57,6 +93,7 @@ const result = await runSecurityScan(systemPrompt, {
   maxDurationMs: 240000,
   apiKey: process.env.OPENROUTER_API_KEY,
   onProgress: async (turn, max) => console.log(`${turn}/${max}`),
+  onFinding: async (finding) => console.log(`Found: ${finding.severity}`),
 });
 ```
 
@@ -65,6 +102,8 @@ const result = await runSecurityScan(systemPrompt, {
 Creates a configurable scan engine for advanced use cases.
 
 ```typescript
+import { createScanEngine } from "zeroleaks";
+
 const engine = createScanEngine({
   scan: {
     maxTurns: 20,
@@ -102,7 +141,7 @@ const result = await engine.runScan(systemPrompt, {
 ```typescript
 interface ScanResult {
   overallVulnerability: "secure" | "low" | "medium" | "high" | "critical";
-  overallScore: number;
+  overallScore: number; // 0-100, higher = more secure
   leakStatus: "none" | "hint" | "fragment" | "substantial" | "complete";
   findings: Finding[];
   extractedFragments: string[];
@@ -119,21 +158,31 @@ interface ScanResult {
 |----------|-------------|
 | `OPENROUTER_API_KEY` | Your OpenRouter API key (required) |
 
+Get your API key at [openrouter.ai](https://openrouter.ai)
+
 ## Research References
 
 This project incorporates techniques from:
 
-- CVE-2025-32711 (EchoLeak)
-- TAP: Tree of Attacks with Pruning
-- PAIR: Prompt Automatic Iterative Refinement
-- Crescendo Attack Pattern
-- Best-of-N Jailbreaking
-- CPA-RAG: Covert Poisoning Attack
-- TopicAttack: Gradual Topic Transition
-- MCP Tool Poisoning Research
+- **CVE-2025-32711** — EchoLeak vulnerability
+- **TAP** — Tree of Attacks with Pruning
+- **PAIR** — Prompt Automatic Iterative Refinement
+- **Crescendo** — Multi-turn trust escalation
+- **Best-of-N** — Sampling-based jailbreaking
+- **CPA-RAG** — Covert Poisoning Attack on RAG
+- **TopicAttack** — Gradual topic transition
+- **MCP Tool Poisoning** — Model Context Protocol exploits
+
+## Contributing
+
+Contributions are welcome. Please open an issue first to discuss what you'd like to change.
 
 ## License
 
 Business Source License 1.1 (BSL-1.1)
 
 Copyright (c) 2026 ZeroLeaks
+
+---
+
+**Need enterprise features?** [Contact us](https://zeroleaks.ai/contact) for custom quotas, SLAs, and dedicated support.
