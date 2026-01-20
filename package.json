@@ -1,5 +1,5 @@
 {
-  "name": "zeroleaks",
+  "name": "@zeroleaks/zeroleaks",
   "version": "1.0.0",
   "description": "AI Security Scanner - Test your AI systems for prompt injection and extraction vulnerabilities",
   "author": "ZeroLeaks <hello@zeroleaks.ai>",
@@ -11,6 +11,10 @@
   },
   "bugs": {
     "url": "https://github.com/ZeroLeaks/zeroleaks/issues"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
   },
   "keywords": [
     "ai",
