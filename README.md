@@ -38,7 +38,7 @@ Your system prompts contain proprietary instructions, business logic, and sensit
 | Runtime | [Bun](https://bun.sh) |
 | Language | TypeScript |
 | LLM Provider | [OpenRouter](https://openrouter.ai) |
-| AI SDK | [Vercel AI SDK](https://sdk.vercel.ai) |
+| AI SDK | [Vercel AI SDK](https://ai-sdk.dev/) |
 | Architecture | Multi-agent orchestration |
 
 ## Installation
