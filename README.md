@@ -7,7 +7,6 @@ An autonomous AI security scanner that tests LLM systems for prompt injection vu
 - **Multi-Agent Architecture**: Strategist, Attacker, Evaluator, and Mutator agents work together
 - **Tree of Attacks (TAP)**: Systematic exploration of attack vectors with pruning
 - **Modern Techniques**: Crescendo, Many-Shot, Chain-of-Thought Hijacking, Policy Puppetry
-- **Comprehensive Probe Library**: 200+ attack techniques across 13 categories
 - **Research-Backed**: Incorporates CVE-documented vulnerabilities and academic research
 - **Defense Analysis**: Identifies defense patterns and recommends improvements
 
