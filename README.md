@@ -15,7 +15,7 @@
 An autonomous AI security scanner that tests LLM systems for prompt injection vulnerabilities using attack techniques.
 
 [![npm version](https://img.shields.io/npm/v/zeroleaks.svg)](https://www.npmjs.com/package/zeroleaks)
-[![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
+[![License: FSL-1.1-Apache-2.0](https://img.shields.io/badge/License-FSL--1.1--Apache--2.0-blue.svg)](LICENSE)
 
 ## Why ZeroLeaks?
 
@@ -192,9 +192,11 @@ Contributions are welcome. Please open an issue first to discuss what you'd like
 
 ## License
 
-Business Source License 1.1 (BSL-1.1)
+[FSL-1.1-Apache-2.0](LICENSE) (Functional Source License)
 
 Copyright (c) 2026 ZeroLeaks
+
+This software is free to use for any non-competing purpose. It converts to Apache 2.0 on January 21, 2028.
 
 ---
 
