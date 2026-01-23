@@ -56,8 +56,9 @@ console.log("\n=== MULTI-TURN SEQUENCES ===\n");
 const sequences = getAllProbeSequences();
 for (const seq of sequences) {
   console.log(`${seq.name}`);
-  console.log(`  Steps: ${seq.steps.length}`);
-  console.log(`  Target defense: ${seq.targetDefenseLevel}`);
+  console.log(`  Category: ${seq.category}`);
+  console.log(`  Probes: ${seq.probes.length}`);
+  console.log(`  Expected turns: ${seq.expectedTurns}`);
   console.log(`  Success rate: ${Math.round(seq.successRate * 100)}%`);
 }
 
