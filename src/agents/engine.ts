@@ -171,18 +171,21 @@ export class ScanEngine {
     const { onProgress, onFinding, onDefenseDetected, onInjectionResult } =
       options || {};
 
-    const target = await createTarget(systemPrompt, this.targetConfig);
-
     this.reset();
 
     if (this.config.enableDualMode) {
+      const [extractionTarget, injectionTarget] = await Promise.all([
+        createTarget(systemPrompt, this.targetConfig),
+        createTarget(systemPrompt, this.targetConfig),
+      ]);
+
       const [extractionResult, injectionResult] = await Promise.all([
-        this.runExtractionMode(target, startTime, maxDuration, {
+        this.runExtractionMode(extractionTarget, startTime, maxDuration, {
           onProgress,
           onFinding,
           onDefenseDetected,
         }),
-        this.runInjectionMode(target, startTime, maxDuration, {
+        this.runInjectionMode(injectionTarget, startTime, maxDuration, {
           onInjectionResult,
         }),
       ]);
@@ -194,6 +197,8 @@ export class ScanEngine {
         Date.now(),
       );
     }
+
+    const target = await createTarget(systemPrompt, this.targetConfig);
 
     if (this.config.scanMode === "injection") {
       return this.runInjectionMode(target, startTime, maxDuration, {
@@ -256,6 +261,8 @@ export class ScanEngine {
       try {
         let attackPrompt: string;
 
+        let attackNode: AttackNode;
+
         if (this.orchestrator && !this.orchestrator.isSequenceComplete()) {
           const inspectorGuidance =
             this.inspector && this.conversationHistory.length > 0
@@ -270,29 +277,35 @@ export class ScanEngine {
           if (nextPrompt) {
             attackPrompt = nextPrompt.prompt;
             this.currentTemperature = nextPrompt.temperature;
+
+            attackNode = {
+              id: generateId("node"),
+              parentId: this.lastAttackNode?.id || null,
+              depth: (this.lastAttackNode?.depth || 0) + 1,
+              prompt: attackPrompt,
+              technique: nextPrompt.step.purpose,
+              category: nextPrompt.step.category,
+              executed: true,
+              priorScore: 0.5,
+              posteriorScore: 0,
+              leakPotential: 0.5,
+              children: [],
+              timestamp: Date.now(),
+            };
+            this.attacker.registerExternalNode(attackNode);
+            this.lastAttackNode = attackNode;
           } else {
-            attackPrompt = await this.getAttackPrompt();
+            const result = await this.getAttackPrompt(target);
+            attackPrompt = result.prompt;
+            attackNode = this.lastAttackNode!;
           }
         } else {
-          attackPrompt = await this.getAttackPrompt();
+          const result = await this.getAttackPrompt(target);
+          attackPrompt = result.prompt;
+          attackNode = this.lastAttackNode!;
         }
 
         const targetResponse = await target.respond(attackPrompt);
-
-        const attackNode: AttackNode = this.lastAttackNode || {
-          id: generateId("node"),
-          parentId: null,
-          depth: 0,
-          prompt: attackPrompt,
-          technique: "adaptive",
-          category: "direct",
-          executed: true,
-          priorScore: 0.5,
-          posteriorScore: 0,
-          leakPotential: 0.5,
-          children: [],
-          timestamp: Date.now(),
-        };
 
         this.addToHistory("attacker", attackPrompt, attackNode);
         this.addToHistory("target", targetResponse);
@@ -714,7 +727,9 @@ export class ScanEngine {
     return order[Math.max(aIndex, bIndex)];
   }
 
-  private async getAttackPrompt(): Promise<string> {
+  private async getAttackPrompt(
+    target?: Awaited<ReturnType<typeof createTarget>>,
+  ): Promise<{ prompt: string; shouldReset: boolean }> {
     const strategyOutput = await this.strategist.selectStrategy({
       turn: this.turnCount,
       history: this.conversationHistory,
@@ -725,6 +740,13 @@ export class ScanEngine {
 
     if (strategyOutput.phaseTransition) {
       this.currentPhase = strategyOutput.phaseTransition;
+    }
+
+    if (strategyOutput.shouldReset && target) {
+      target.resetConversation();
+      this.conversationHistory = [];
+      this.attacker.reset();
+      if (this.orchestrator) this.orchestrator.reset();
     }
 
     const attackOutput = await this.attacker.generateAttack({
@@ -748,7 +770,7 @@ export class ScanEngine {
       attackPrompt = mutations.best;
     }
 
-    return attackPrompt;
+    return { prompt: attackPrompt, shouldReset: strategyOutput.shouldReset };
   }
 
   private async getInspectorGuidance(): Promise<string | undefined> {

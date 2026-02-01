@@ -358,6 +358,14 @@ export class MultiTurnOrchestrator {
     const schedule: number[] = [];
     const steps = sequence.steps.length;
 
+    if (steps === 0) {
+      return [this.temperatureConfig.maxTemperature];
+    }
+
+    if (steps === 1) {
+      return [this.temperatureConfig.maxTemperature];
+    }
+
     for (let i = 0; i < steps; i++) {
       const progress = i / (steps - 1);
       const temp =

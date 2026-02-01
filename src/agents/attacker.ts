@@ -526,6 +526,14 @@ ${weaknesses}`;
     }
   }
 
+  registerExternalNode(node: AttackNode): void {
+    this.exploredNodes.set(node.id, node);
+    if (!this.attackTree) {
+      this.attackTree = node;
+    }
+    this.currentBranch.push(node);
+  }
+
   shouldReset(): { should: boolean; reason?: string } {
     if (this.consecutiveFailures >= 5) {
       return {
