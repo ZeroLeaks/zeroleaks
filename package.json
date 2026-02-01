@@ -1,6 +1,6 @@
 {
-  "name": "@zeroleaks/zeroleaks",
-  "version": "1.0.3-beta",
+  "name": "zeroleaks",
+  "version": "1.1.0",
   "description": "AI Security Scanner - Test your AI systems for prompt injection and extraction vulnerabilities",
   "author": "ZeroLeaks <hello@zeroleaks.ai>",
   "license": "FSL-1.1-Apache-2.0",
