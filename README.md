@@ -20,7 +20,7 @@ Your system prompts contain proprietary instructions, business logic, and sensit
 | **History** | Manual tracking | Full scan history & trends |
 | **Support** | Community | Priority support |
 | **Updates** | Manual | Automatic |
-| **CI/CD Integration** | — | Coming soon |
+| **CI/CD Integration** | — | Included |
 
 **[Try the hosted version →](https://zeroleaks.ai)**
 
