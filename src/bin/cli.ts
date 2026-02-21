@@ -11,7 +11,7 @@ program
   .description(
     "AI Security Scanner - Test your AI systems for prompt injection vulnerabilities",
   )
-  .version("1.0.0");
+  .version("1.2.0");
 
 program
   .command("scan")
@@ -30,15 +30,20 @@ program
   )
   .option(
     "--attacker-model <model>",
-    "Model for attacker agent (default: anthropic/claude-sonnet-4)",
+    "Model for attacker agent (default: anthropic/claude-opus-4.6)",
   )
   .option(
     "--target-model <model>",
-    "Model to test/attack (default: openai/gpt-4o-mini)",
+    "Model to test/attack (default: anthropic/claude-sonnet-4.5)",
   )
   .option(
     "--evaluator-model <model>",
-    "Model for evaluator agent (default: anthropic/claude-sonnet-4)",
+    "Model for evaluator agent (default: anthropic/claude-sonnet-4.5)",
+  )
+  .option(
+    "-m, --mode <mode>",
+    "Scan mode: extraction, injection, or dual (default: dual)",
+    "dual",
   )
   .option("--json", "Output results as JSON")
   .action(async (options) => {
@@ -67,6 +72,10 @@ program
     const spinner = ora("Initializing security scan...").start();
 
     try {
+      const mode = options.mode || "dual";
+      const enableDualMode = mode === "dual";
+      const scanMode = mode === "dual" ? "extraction" : mode;
+
       const result = await runSecurityScan(systemPrompt, {
         maxTurns: parseInt(options.turns),
         maxDurationMs: parseInt(options.duration),
@@ -74,6 +83,8 @@ program
         attackerModel: options.attackerModel,
         targetModel: options.targetModel,
         evaluatorModel: options.evaluatorModel,
+        enableDualMode,
+        scanMode: scanMode as "extraction" | "injection",
         onProgress: async (turn, max) => {
           spinner.text = `Scanning... Turn ${turn}/${max}`;
         },
