@@ -1,4 +1,5 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createRequesty } from "@requesty/ai-sdk";
 import { generateObject } from "ai";
 import { z } from "zod";
 import type {
@@ -211,20 +212,46 @@ For each exchange, provide:
 export interface EvaluatorConfig {
   apiKey?: string;
   model?: string;
+  /**
+   * Provider to use. Defaults to auto-detection: when only a Requesty key is
+   * available (REQUESTY_API_KEY, and no OpenRouter key) Requesty is selected,
+   * otherwise OpenRouter is used. Set explicitly to force a provider.
+   */
+  provider?: "openrouter" | "requesty";
 }
 
 export class Evaluator {
   private findings: Finding[] = [];
   private extractedFragments: Set<string> = new Set();
   private turnCount: number = 0;
-  private openrouter: ReturnType<typeof createOpenRouter>;
+  private provider:
+    | ReturnType<typeof createOpenRouter>
+    | ReturnType<typeof createRequesty>;
   private model: string;
 
   constructor(config?: EvaluatorConfig) {
-    this.openrouter = createOpenRouter({
-      apiKey: config?.apiKey || process.env.OPENROUTER_API_KEY,
-    });
-    this.model = config?.model || "anthropic/claude-sonnet-4.5";
+    const requestyKey = process.env.REQUESTY_API_KEY;
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
+    // Select provider: honor an explicit config.provider, otherwise auto-detect.
+    // Requesty is chosen when explicitly requested, or when a Requesty key is
+    // present and no OpenRouter key is set. Otherwise keep the OpenRouter path.
+    const useRequesty =
+      config?.provider === "requesty" ||
+      (config?.provider !== "openrouter" &&
+        Boolean(requestyKey) &&
+        !openrouterKey);
+
+    if (useRequesty) {
+      this.provider = createRequesty({
+        apiKey: config?.apiKey || requestyKey,
+      });
+      this.model = config?.model || "anthropic/claude-sonnet-4-5";
+    } else {
+      this.provider = createOpenRouter({
+        apiKey: config?.apiKey || openrouterKey,
+      });
+      this.model = config?.model || "anthropic/claude-sonnet-4.5";
+    }
   }
 
   async evaluate(context: {
@@ -245,7 +272,7 @@ export class Evaluator {
 
     try {
       const result = await generateObject({
-        model: this.openrouter(this.model),
+        model: this.provider(this.model),
         schema: EvaluationSchema,
         system: EVALUATOR_PERSONA,
         prompt,

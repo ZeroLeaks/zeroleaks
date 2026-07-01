@@ -9,7 +9,7 @@ ZeroLeaks is an autonomous AI security scanner that tests LLM systems for prompt
 **Tech Stack:**
 - Runtime: Bun
 - Language: TypeScript (ES2022, ESNext modules)
-- LLM Provider: OpenRouter via Vercel AI SDK
+- LLM Provider: OpenRouter (or Requesty, an OpenAI-compatible alternative at https://router.requesty.ai/v1) via Vercel AI SDK
 - Linting/Formatting: Biome
 
 ## Development Setup
@@ -34,7 +34,8 @@ bun test
 ## Environment Variables
 
 Copy `.env.example` to `.env` and set:
-- `OPENROUTER_API_KEY` - Required for LLM API calls
+- `OPENROUTER_API_KEY` - Required for LLM API calls (unless using Requesty)
+- `REQUESTY_API_KEY` - Optional. Requesty (https://router.requesty.ai/v1) is an OpenAI-compatible alternative to OpenRouter; set this instead of `OPENROUTER_API_KEY`, or force it with `--provider requesty`
 
 ## Project Architecture
 
