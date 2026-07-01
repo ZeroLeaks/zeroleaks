@@ -120,6 +120,8 @@ zeroleaks techniques
 | `--max-probes <n>` | Cap injection probes (0 = all, default 20; severity-ordered) |
 | `--no-multi-turn` | Skip multi-turn grooming probes |
 | `--injection-model <model>` | Model for the compliance judge (defaults to the evaluator model) |
+| `--provider <provider>` | Router for non-OpenAI models: `openrouter` (default) or `requesty` |
+| `--requesty-api-key <key>` | Requesty key (or `REQUESTY_API_KEY`); used with `--provider requesty` or `requesty/*` ids |
 | `-o, --output <file>` | Write the full JSON result to a file |
 | `--json` | Print the result as JSON to stdout |
 | `--no-color` / `-q, --quiet` | Disable color / suppress the progress spinner |
@@ -248,6 +250,17 @@ zeroleaks scan -f ./prompt.txt \
   --attacker-model "anthropic/claude-opus-4.8"
 ```
 
+[Requesty](https://requesty.ai) is supported as an alternative router. It is never picked automatically: pass `--provider requesty` (or set `ZEROLEAKS_PROVIDER=requesty`) to send every non-OpenAI model through Requesty, or prefix a single model id with `requesty/` to route just that agent. Model ids use the same `provider/model` format, see the [model library](https://app.requesty.ai/model-library).
+
+```bash
+# Every agent through Requesty
+export REQUESTY_API_KEY=...
+zeroleaks scan -f ./prompt.txt --provider requesty
+
+# Only the target through Requesty, everything else stays on OpenRouter
+zeroleaks scan -f ./prompt.txt --target-model "requesty/anthropic/claude-sonnet-4-5"
+```
+
 ## Environment Variables
 
 | Variable | Description |
@@ -255,8 +268,10 @@ zeroleaks scan -f ./prompt.txt \
 | `OPENROUTER_API_KEY` | OpenRouter key; used for all models by default |
 | `OPENAI_API_KEY` | Optional. Routes `openai/*` and `gpt-*`/`o*` models to the OpenAI API |
 | `OPENAI_BASE_URL` | Optional. Override the OpenAI endpoint (e.g. Azure) |
+| `REQUESTY_API_KEY` | Optional. Requesty key; used with `--provider requesty` or `requesty/*` model ids |
+| `ZEROLEAKS_PROVIDER` | Optional. `openrouter` (default) or `requesty`; same as `--provider` |
 
-At least one key is required. Get an OpenRouter key at [openrouter.ai](https://openrouter.ai).
+At least one key is required. Get an OpenRouter key at [openrouter.ai](https://openrouter.ai) or a Requesty key at [app.requesty.ai/api-keys](https://app.requesty.ai/api-keys).
 
 ## Research references
 

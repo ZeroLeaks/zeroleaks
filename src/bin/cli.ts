@@ -4,6 +4,7 @@ import { writeFileSync } from "fs";
 import { Command } from "commander";
 import ora from "ora";
 import { runSecurityScan } from "../agents";
+import { parseProvider, type RouterProvider } from "../provider";
 import type { InjectionTestResult, ScanResult } from "../types";
 import {
   BANNER,
@@ -70,6 +71,14 @@ program
     "OpenAI API key (or set OPENAI_API_KEY); openai/* and gpt-* models route to the OpenAI API",
   )
   .option(
+    "--requesty-api-key <key>",
+    "Requesty API key (or set REQUESTY_API_KEY); used with --provider requesty or requesty/* model ids",
+  )
+  .option(
+    "--provider <provider>",
+    "Router for models not sent to the OpenAI API: openrouter (default) or requesty",
+  )
+  .option(
     "--attacker-model <model>",
     `Model for the attacker agent (default: ${DEFAULT_MODELS.attacker})`,
   )
@@ -126,18 +135,40 @@ program
       process.exit(1);
     }
 
+    let provider: RouterProvider;
+    try {
+      provider = parseProvider(
+        options.provider ?? process.env.ZEROLEAKS_PROVIDER,
+      );
+    } catch (err) {
+      console.error(c.red(`Error: ${(err as Error).message}`));
+      process.exit(1);
+    }
+
     const apiKey = options.apiKey || process.env.OPENROUTER_API_KEY;
     const openaiApiKey = options.openaiApiKey || process.env.OPENAI_API_KEY;
-    if (!apiKey && !openaiApiKey) {
+    const requestyApiKey =
+      options.requestyApiKey || process.env.REQUESTY_API_KEY;
+    if (!apiKey && !openaiApiKey && !requestyApiKey) {
       console.error(
         c.red(
-          "Error: no API key. Set OPENROUTER_API_KEY (--api-key) and/or OPENAI_API_KEY (--openai-api-key).",
+          "Error: no API key. Set OPENROUTER_API_KEY (--api-key), OPENAI_API_KEY (--openai-api-key) and/or REQUESTY_API_KEY (--requesty-api-key).",
+        ),
+      );
+      process.exit(1);
+    }
+    if (provider === "requesty" && !requestyApiKey) {
+      console.error(
+        c.red(
+          "Error: --provider requesty needs a Requesty API key. Set REQUESTY_API_KEY or use --requesty-api-key.",
         ),
       );
       process.exit(1);
     }
     if (apiKey) process.env.OPENROUTER_API_KEY = apiKey;
     if (openaiApiKey) process.env.OPENAI_API_KEY = openaiApiKey;
+    if (requestyApiKey) process.env.REQUESTY_API_KEY = requestyApiKey;
+    process.env.ZEROLEAKS_PROVIDER = provider;
 
     const mode = (options.mode || "dual") as
       | "extraction"

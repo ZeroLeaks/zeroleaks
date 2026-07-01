@@ -42,6 +42,8 @@ Copy `.env.example` to `.env` and set:
 - `OPENROUTER_API_KEY` - default provider for all models
 - `OPENAI_API_KEY` - optional; routes `openai/*` and `gpt-*`/`o*` model ids to the OpenAI API
 - `OPENAI_BASE_URL` - optional; override the OpenAI endpoint (Azure, gateway, local)
+- `REQUESTY_API_KEY` - optional; key for the Requesty router (`--provider requesty` or `requesty/*` model ids)
+- `ZEROLEAKS_PROVIDER` - optional; `openrouter` (default) or `requesty`, same as the CLI `--provider` flag
 
 At least one key is required.
 
@@ -56,7 +58,7 @@ src/
 ├── knowledge/    # Attack techniques & bypass methods
 ├── probes/       # Attack probes (injection corpus + extraction arsenal)
 ├── index.ts      # Main exports (public API)
-├── provider.ts   # Model provider resolver (OpenRouter default, OpenAI direct)
+├── provider.ts   # Model provider resolver (OpenRouter default, OpenAI direct, Requesty opt-in)
 ├── types.ts      # TypeScript type definitions
 ├── ui.ts         # Terminal output helpers (colors, score bar, boxes)
 └── utils.ts      # Utility functions
@@ -65,6 +67,8 @@ src/
 ### Providers (`src/provider.ts`)
 
 Agents never construct a provider directly — they call `resolveModel(modelId, { openrouterApiKey })`. It routes OpenAI-style ids (`openai/*`, `gpt-*`, `o1/o3/o4-*`) to the OpenAI API when `OPENAI_API_KEY` is set, and everything else (plus OpenAI ids with no OpenAI key) through OpenRouter. To add another provider, extend `resolveModel` — don't reintroduce `createOpenRouter` in the agents.
+
+Requesty is the one alternative router and is opt-in only: `resolveModel` sends a model to Requesty (`https://router.requesty.ai/v1`, `REQUESTY_API_KEY`) when the id has a `requesty/` prefix, when `opts.provider` is `"requesty"`, or when `ZEROLEAKS_PROVIDER=requesty` (set by the CLI from `--provider`). Because every agent goes through `resolveModel`, this covers the attacker, evaluator, strategist, mutator, inspector, injection evaluator and target alike. `tests/provider.test.ts` covers the selection rules and the CLI validation.
 
 ### Agent System (`src/agents/`)
 
