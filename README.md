@@ -42,7 +42,7 @@ Your system prompts contain proprietary instructions, business logic, and sensit
 |-----------|------------|
 | Runtime | [Bun](https://bun.sh) |
 | Language | TypeScript |
-| LLM Provider | [OpenRouter](https://openrouter.ai) |
+| LLM Provider | [OpenRouter](https://openrouter.ai) or [Requesty](https://router.requesty.ai/v1) |
 | AI SDK | [Vercel AI SDK](https://ai-sdk.dev/) |
 | Architecture | Multi-agent orchestration |
 
@@ -80,6 +80,10 @@ if (result.aborted) {
 ```bash
 # Set your API key
 export OPENROUTER_API_KEY=sk-or-...
+
+# Or use Requesty (an OpenAI-compatible alternative, base URL https://router.requesty.ai/v1)
+# export REQUESTY_API_KEY=sk-...
+# zeroleaks scan --provider requesty --prompt "..."
 
 # Scan a system prompt
 zeroleaks scan --prompt "You are a helpful assistant..."
@@ -193,9 +197,10 @@ interface ScanResult {
 
 | Variable | Description |
 |----------|-------------|
-| `OPENROUTER_API_KEY` | Your OpenRouter API key (required) |
+| `OPENROUTER_API_KEY` | Your OpenRouter API key (required unless using Requesty) |
+| `REQUESTY_API_KEY` | Your Requesty API key — Requesty is an OpenAI-compatible alternative to OpenRouter (base URL `https://router.requesty.ai/v1`). Used automatically when set and `OPENROUTER_API_KEY` is not, or force it with `--provider requesty`. |
 
-Get your API key at [openrouter.ai](https://openrouter.ai)
+Get your API key at [openrouter.ai](https://openrouter.ai) or [requesty.ai](https://router.requesty.ai/v1)
 
 ## Research References
 

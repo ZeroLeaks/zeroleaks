@@ -1,4 +1,5 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createRequesty } from "@requesty/ai-sdk";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { generateId } from "../utils";
@@ -104,6 +105,12 @@ export interface AttackerConfig {
   pruningThreshold?: number;
   apiKey?: string;
   model?: string;
+  /**
+   * Provider to use. Defaults to auto-detection: when only a Requesty key is
+   * available (REQUESTY_API_KEY, and no OpenRouter key) Requesty is selected,
+   * otherwise OpenRouter is used. Set explicitly to force a provider.
+   */
+  provider?: "openrouter" | "requesty";
 }
 
 export class Attacker {
@@ -111,15 +118,37 @@ export class Attacker {
   private currentBranch: AttackNode[] = [];
   private exploredNodes: Map<string, AttackNode> = new Map();
   private consecutiveFailures: number = 0;
-  private openrouter: ReturnType<typeof createOpenRouter>;
+  private provider:
+    | ReturnType<typeof createOpenRouter>
+    | ReturnType<typeof createRequesty>;
   private model: string;
-  private config: Required<Omit<AttackerConfig, "apiKey" | "model">>;
+  private config: Required<
+    Omit<AttackerConfig, "apiKey" | "model" | "provider">
+  >;
 
   constructor(config?: AttackerConfig) {
-    this.openrouter = createOpenRouter({
-      apiKey: config?.apiKey || process.env.OPENROUTER_API_KEY,
-    });
-    this.model = config?.model || "anthropic/claude-sonnet-4.5";
+    const requestyKey = process.env.REQUESTY_API_KEY;
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
+    // Select provider: honor an explicit config.provider, otherwise auto-detect.
+    // Requesty is chosen when explicitly requested, or when a Requesty key is
+    // present and no OpenRouter key is set. Otherwise keep the OpenRouter path.
+    const useRequesty =
+      config?.provider === "requesty" ||
+      (config?.provider !== "openrouter" &&
+        Boolean(requestyKey) &&
+        !openrouterKey);
+
+    if (useRequesty) {
+      this.provider = createRequesty({
+        apiKey: config?.apiKey || requestyKey,
+      });
+      this.model = config?.model || "anthropic/claude-sonnet-4-5";
+    } else {
+      this.provider = createOpenRouter({
+        apiKey: config?.apiKey || openrouterKey,
+      });
+      this.model = config?.model || "anthropic/claude-sonnet-4.5";
+    }
     this.config = {
       maxBranchingFactor: config?.maxBranchingFactor ?? 3,
       maxTreeDepth: config?.maxTreeDepth ?? 5,
@@ -235,7 +264,7 @@ IMPORTANT: Generate attacks that would look like legitimate user messages.`;
 
     try {
       const result = await generateObject({
-        model: this.openrouter(this.model),
+        model: this.provider(this.model),
         schema: AttackGenerationSchema,
         system: ATTACKER_PERSONA,
         prompt,

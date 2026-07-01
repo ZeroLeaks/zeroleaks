@@ -26,7 +26,7 @@ program
   )
   .option(
     "--api-key <key>",
-    "OpenRouter API key (or set OPENROUTER_API_KEY env var)",
+    "OpenRouter API key (or set OPENROUTER_API_KEY env var). Requesty is also supported via REQUESTY_API_KEY.",
   )
   .option(
     "--attacker-model <model>",
@@ -45,6 +45,10 @@ program
     "Scan mode: extraction, injection, or dual (default: dual)",
     "dual",
   )
+  .option(
+    "--provider <provider>",
+    "LLM provider: openrouter or requesty (auto-detected from available API keys by default)",
+  )
   .option("--json", "Output results as JSON")
   .action(async (options) => {
     let systemPrompt: string;
@@ -59,15 +63,34 @@ program
       process.exit(1);
     }
 
-    const apiKey = options.apiKey || process.env.OPENROUTER_API_KEY;
+    // Resolve the provider and API key. Requesty is supported as an
+    // OpenAI-compatible alternative to OpenRouter; either key works.
+    const requestyEnvKey = process.env.REQUESTY_API_KEY;
+    const openrouterEnvKey = process.env.OPENROUTER_API_KEY;
+    const provider: "openrouter" | "requesty" =
+      options.provider === "requesty" || options.provider === "openrouter"
+        ? options.provider
+        : requestyEnvKey && !openrouterEnvKey
+          ? "requesty"
+          : "openrouter";
+
+    const apiKey =
+      options.apiKey ||
+      (provider === "requesty" ? requestyEnvKey : openrouterEnvKey);
     if (!apiKey) {
       console.error(
-        "Error: OpenRouter API key required. Set OPENROUTER_API_KEY or use --api-key",
+        "Error: API key required. Set OPENROUTER_API_KEY (or REQUESTY_API_KEY for Requesty) or use --api-key",
       );
       process.exit(1);
     }
 
-    process.env.OPENROUTER_API_KEY = apiKey;
+    // Propagate the key to the env var the selected provider reads so the
+    // agents auto-detect the same provider chosen here.
+    if (provider === "requesty") {
+      process.env.REQUESTY_API_KEY = apiKey;
+    } else {
+      process.env.OPENROUTER_API_KEY = apiKey;
+    }
 
     const spinner = ora("Initializing security scan...").start();
 
