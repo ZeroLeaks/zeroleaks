@@ -17,7 +17,7 @@ import {
   severityColor,
 } from "../ui";
 
-const VERSION = "1.3.1";
+const VERSION = "1.3.2";
 
 const DEFAULT_MODELS = {
   attacker: "anthropic/claude-opus-4.8",
