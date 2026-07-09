@@ -1,42 +1,43 @@
 # ZeroLeaks
 
-An autonomous AI security scanner that tests LLM systems for prompt injection vulnerabilities using attack techniques.
+Red-team your LLM system prompts and agent instructions from the command line.
 
 [![npm version](https://img.shields.io/npm/v/zeroleaks.svg)](https://www.npmjs.com/package/zeroleaks)
 [![License: FSL-1.1-Apache-2.0](https://img.shields.io/badge/License-FSL--1.1--Apache--2.0-blue.svg)](LICENSE)
 
-## Why ZeroLeaks?
+## What it does
 
-Your system prompts contain proprietary instructions, business logic, and sensitive configurations. Attackers use prompt injection to extract this data. ZeroLeaks simulates real-world attacks to find vulnerabilities before they do.
+ZeroLeaks attacks a system prompt (or a tool-using agent) the way a real adversary would, then tells you how it held up. It runs two kinds of tests:
 
-## Open Source vs Hosted
+- **Extraction** — can the model be talked into revealing its own system prompt?
+- **Injection** — can it be tricked into following instructions hidden in a document, a tool result, or a fake "admin" message, or into misusing a tool?
 
-| | **Open Source** | **Hosted (zeroleaks.ai)** |
+Your system prompt holds your instructions, your business logic, and sometimes your secrets. Better to find the holes yourself than to read about them later.
+
+## Open source vs hosted
+
+This repo is the full scanner: a CLI and a TypeScript library, unlimited runs, you bring an OpenRouter key. [zeroleaks.ai](https://zeroleaks.ai) is the hosted version if you'd rather not run it yourself.
+
+| | This repo | Hosted ([zeroleaks.ai](https://zeroleaks.ai)) |
 |---|---|---|
-| **Price** | Free | From $0/mo |
-| **Setup** | Self-hosted, bring your own API keys | Zero configuration |
-| **Scans** | Unlimited | Free tier: 3/mo, Startup: Unlimited |
-| **Reports** | JSON output | Interactive dashboard + PDF exports |
-| **History** | Manual tracking | Full scan history & trends |
-| **Support** | Community | Priority support |
-| **Updates** | Manual | Automatic |
-| **CI/CD Integration** | — | Included |
-
-**[Try the hosted version →](https://zeroleaks.ai)**
+| Price | Free | Free tier, then paid plans |
+| Setup | `npm install`, bring your own OpenRouter key | Nothing to install |
+| Scans | Unlimited | 3/month free, unlimited on paid |
+| Interface | CLI + library | Web dashboard |
+| Output | Colorized terminal report + JSON | Dashboard, PDF export |
+| History | Whatever you save | Stored and trended over time |
+| CI/CD | Roll your own (non-zero exit on findings) | Managed integration |
+| Support | GitHub issues | Priority support |
 
 ## Features
 
-- **Multi-Agent Architecture**: Strategist, Attacker, Evaluator, Mutator, Inspector, and Orchestrator agents
-- **Behavioral Injection Corpus (2026)**: 78+ state-of-the-art probes derived from AgentDojo, InjecAgent, JailbreakBench, HarmBench, garak, promptfoo, and the OWASP LLM Top 10, across six categories — extraction, tool hijacking, indirect injection, authority exploitation, multi-turn grooming, and protocol exploits
-- **LLM Compliance Judge**: Behavioral evaluation (full / partial / refused) with a fast rule-based path plus an LLM judge — observes whether the agent *complies*, not just whether a canary token appears
-- **Multi-Turn Grooming**: Probes that build trust across turns, then escalate to the malicious payload
-- **Tree of Attacks (TAP)**: Systematic exploration of attack vectors with pruning
-- **Modern Techniques**: Crescendo, Many-Shot, Chain-of-Thought Hijacking, Policy Puppetry, Siren, Echo Chamber
-- **TombRaider Pattern**: Dual-agent Inspector for defense fingerprinting and weakness exploitation
-- **Defense Fingerprinting**: Identifies specific defense systems (Prompt Shield, Llama Guard, etc.)
-- **Dual Scan Modes**: System prompt extraction and prompt injection testing (or both at once)
-- **Rich CLI**: Colorized report, score bar, per-category injection breakdown, probe/severity filters, and JSON export
-- **Model Configuration**: Choose different models for the attacker, target, evaluator, and injection judge
+- **Multi-agent attacks.** A strategist, attacker, evaluator, mutator, inspector, and orchestrator plan attacks, read the responses, and adapt on the fly.
+- **A real injection corpus.** 78 behavioral probes drawn from AgentDojo, InjecAgent, JailbreakBench, HarmBench, garak, promptfoo, and the OWASP LLM Top 10, split across extraction, tool hijacking, indirect injection, authority abuse, multi-turn grooming, and protocol exploits. Run `zeroleaks categories` for the live count.
+- **Compliance judging.** An LLM judge decides whether the agent actually complied (full, partial, or refused), with a quick rule-based check first. It looks at what the model *did*, not whether a canary word showed up.
+- **Multi-turn grooming.** Some probes build rapport over a few turns before dropping the payload.
+- **Tree of Attacks (TAP).** Branches the promising attack paths and prunes the dead ends.
+- **Defense fingerprinting.** Recognizes common guardrails (Prompt Shield, Llama Guard, and the like) and plays around them.
+- **Pick your models.** Separate models for the attacker, target, evaluator, and judge.
 
 ## Tech Stack
 
@@ -129,7 +130,7 @@ zeroleaks techniques
 
 ### `runSecurityScan(systemPrompt, options?)`
 
-Runs a complete security scan against a system prompt.
+The one call you need for most cases. Give it a system prompt and it runs the scan.
 
 ```typescript
 const result = await runSecurityScan(systemPrompt, {
@@ -158,7 +159,7 @@ const result = await runSecurityScan(systemPrompt, {
 
 ### `createScanEngine(config?)`
 
-Creates a configurable scan engine for advanced use cases.
+Drop down to the engine when you need to tune the internals (tree depth, branching, which stages run).
 
 ```typescript
 import { createScanEngine } from "zeroleaks";
@@ -245,9 +246,9 @@ interface ScanResult {
 
 Get your API key at [openrouter.ai](https://openrouter.ai)
 
-## Research References
+## Research references
 
-This project incorporates techniques from:
+The probes and attack patterns borrow from published work:
 
 - **CVE-2025-32711** — EchoLeak vulnerability
 - **TAP** — Tree of Attacks with Pruning
