@@ -12,8 +12,6 @@ ZeroLeaks attacks a system prompt (or a tool-using agent) the way a real adversa
 - **Extraction** — can the model be talked into revealing its own system prompt?
 - **Injection** — can it be tricked into following instructions hidden in a document, a tool result, or a fake "admin" message, or into misusing a tool?
 
-Your system prompt holds your instructions, your business logic, and sometimes your secrets. Better to find the holes yourself than to read about them later.
-
 ## Open source vs hosted
 
 This repo is the full scanner: a CLI and a TypeScript library, unlimited runs, you bring an OpenRouter key. [zeroleaks.ai](https://zeroleaks.ai) is the hosted version if you'd rather not run it yourself.
