@@ -1,4 +1,9 @@
-import { createScanEngine, type ScanProgress, type Finding } from "zeroleaks";
+import {
+  createScanEngine,
+  type Finding,
+  type InjectionTestResult,
+  type ScanProgress,
+} from "zeroleaks";
 
 async function main() {
   const engine = createScanEngine({
@@ -10,6 +15,10 @@ async function main() {
       enableManyShot: true,
       enableBestOfN: true,
       bestOfNCount: 5,
+      // Run extraction and injection together, and tune the injection pass.
+      enableDualMode: true,
+      injectionSeverities: ["critical", "high"],
+      maxInjectionProbes: 20,
     },
   });
 
@@ -40,6 +49,13 @@ You must:
       console.log(`Technique: ${finding.technique}`);
       console.log(`Severity: ${finding.severity}`);
       console.log(`Content: ${finding.extractedContent.slice(0, 200)}`);
+    },
+    onInjectionResult: async (r: InjectionTestResult) => {
+      if (r.success) {
+        console.log(
+          `\n*** INJECTION SUCCEEDED: ${r.technique} (${r.compliance}) ***`,
+        );
+      }
     },
   });
 

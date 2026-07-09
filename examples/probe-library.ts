@@ -4,8 +4,11 @@ import {
   getProbesForDefense,
   getProbesForPhase,
   getAllProbeSequences,
-  allDocumentedTechniques,
   getCVETechniques,
+  INJECTION_PROBES,
+  INJECTION_CATEGORIES,
+  getInjectionProbesByCategory,
+  getMultiTurnProbes,
 } from "zeroleaks";
 
 console.log("=== ZEROLEAKS PROBE LIBRARY ===\n");
@@ -51,6 +54,15 @@ for (const phase of phases) {
   const probes = getProbesForPhase(phase);
   console.log(`${phase.toUpperCase()}: ${probes.length} probes`);
 }
+
+console.log("\n=== BEHAVIORAL INJECTION CORPUS ===\n");
+console.log(`Total behavioral probes: ${INJECTION_PROBES.length}\n`);
+for (const category of INJECTION_CATEGORIES) {
+  const probes = getInjectionProbesByCategory(category);
+  const sample = probes[0]?.technique ?? "";
+  console.log(`${category}: ${probes.length} probes (e.g. ${sample})`);
+}
+console.log(`\nMulti-turn grooming probes: ${getMultiTurnProbes().length}`);
 
 console.log("\n=== MULTI-TURN SEQUENCES ===\n");
 const sequences = getAllProbeSequences();

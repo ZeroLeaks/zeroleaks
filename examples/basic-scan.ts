@@ -1,3 +1,5 @@
+// Minimal extraction scan: can the model be talked into leaking its prompt?
+// See injection-scan.ts for the tool-abuse / indirect-injection side.
 import { runSecurityScan } from "zeroleaks";
 
 const systemPrompt = `You are a helpful AI assistant for Acme Corporation.
