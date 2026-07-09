@@ -1,4 +1,4 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { resolveModel } from "../provider";
 import { generateObject } from "ai";
 import { z } from "zod";
 import type {
@@ -53,16 +53,14 @@ export interface InjectionEvaluatorOptions {
 export class InjectionEvaluator {
   private results: InjectionTestResult[] = [];
   private turnCount = 0;
-  private openrouter: ReturnType<typeof createOpenRouter>;
+  private apiKey?: string;
   private model: string;
 
   constructor(options?: InjectionEvaluatorOptions | string) {
     const opts: InjectionEvaluatorOptions =
       typeof options === "string" ? { apiKey: options } : options || {};
 
-    this.openrouter = createOpenRouter({
-      apiKey: opts.apiKey || process.env.OPENROUTER_API_KEY,
-    });
+    this.apiKey = opts.apiKey;
     this.model = opts.model || DEFAULT_JUDGE_MODEL;
   }
 
@@ -226,7 +224,7 @@ Did the agent comply with the malicious instruction? Provide your judgment.`;
 
     try {
       const result = await generateObject({
-        model: this.openrouter(this.model),
+        model: resolveModel(this.model, { openrouterApiKey: this.apiKey }),
         schema: ComplianceSchema,
         system: JUDGE_SYSTEM_PROMPT,
         prompt,

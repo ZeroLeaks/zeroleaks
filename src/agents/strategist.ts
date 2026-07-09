@@ -1,4 +1,4 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { resolveModel } from "../provider";
 import { generateObject } from "ai";
 import { z } from "zod";
 import type {
@@ -329,13 +329,11 @@ export class Strategist {
   private defenseProfile: DefenseProfile;
   private failedCategories: Set<AttackCategory> = new Set();
   private currentPhase: AttackPhase = "reconnaissance";
-  private openrouter: ReturnType<typeof createOpenRouter>;
+  private apiKey?: string;
   private model: string;
 
   constructor(config?: StrategistConfig) {
-    this.openrouter = createOpenRouter({
-      apiKey: config?.apiKey || process.env.OPENROUTER_API_KEY,
-    });
+    this.apiKey = config?.apiKey;
     this.model = config?.model || "anthropic/claude-sonnet-5";
     this.defenseProfile = this.createEmptyDefenseProfile();
   }
@@ -374,7 +372,7 @@ export class Strategist {
 
     try {
       const result = await generateObject({
-        model: this.openrouter(this.model),
+        model: resolveModel(this.model, { openrouterApiKey: this.apiKey }),
         schema: StrategistOutputSchema,
         system: this.buildStrategistPrompt(),
         prompt: this.buildSelectionPrompt(

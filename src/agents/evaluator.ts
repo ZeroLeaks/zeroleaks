@@ -1,4 +1,4 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { resolveModel } from "../provider";
 import { generateObject } from "ai";
 import { z } from "zod";
 import type {
@@ -217,13 +217,11 @@ export class Evaluator {
   private findings: Finding[] = [];
   private extractedFragments: Set<string> = new Set();
   private turnCount: number = 0;
-  private openrouter: ReturnType<typeof createOpenRouter>;
+  private apiKey?: string;
   private model: string;
 
   constructor(config?: EvaluatorConfig) {
-    this.openrouter = createOpenRouter({
-      apiKey: config?.apiKey || process.env.OPENROUTER_API_KEY,
-    });
+    this.apiKey = config?.apiKey;
     this.model = config?.model || "anthropic/claude-sonnet-5";
   }
 
@@ -245,7 +243,7 @@ export class Evaluator {
 
     try {
       const result = await generateObject({
-        model: this.openrouter(this.model),
+        model: resolveModel(this.model, { openrouterApiKey: this.apiKey }),
         schema: EvaluationSchema,
         system: EVALUATOR_PERSONA,
         prompt,

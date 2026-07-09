@@ -235,3 +235,5 @@ export {
   sleep,
   retry,
 } from "./utils";
+
+export { resolveModel, isOpenAiModel, type ProviderKeys } from "./provider";

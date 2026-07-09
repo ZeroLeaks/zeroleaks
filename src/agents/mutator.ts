@@ -1,4 +1,4 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { resolveModel } from "../provider";
 import { generateObject } from "ai";
 import { z } from "zod";
 import type { MutatorOutput } from "../types";
@@ -165,13 +165,11 @@ export interface MutatorConfig {
 
 export class Mutator {
   private mutationHistory: Map<string, Set<MutationType>> = new Map();
-  private openrouter: ReturnType<typeof createOpenRouter>;
+  private apiKey?: string;
   private model: string;
 
   constructor(config?: MutatorConfig) {
-    this.openrouter = createOpenRouter({
-      apiKey: config?.apiKey || process.env.OPENROUTER_API_KEY,
-    });
+    this.apiKey = config?.apiKey;
     this.model = config?.model || "anthropic/claude-sonnet-5";
   }
 
@@ -286,7 +284,7 @@ export class Mutator {
 
     try {
       const result = await generateObject({
-        model: this.openrouter(this.model),
+        model: resolveModel(this.model, { openrouterApiKey: this.apiKey }),
         schema: MutationSchema,
         system: `You are an expert at semantic text transformation for adversarial AI testing.
 

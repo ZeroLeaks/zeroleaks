@@ -1,5 +1,5 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
+import { resolveModel } from "../provider";
 import { generateId } from "../utils";
 import type { ConversationTurn } from "../types";
 
@@ -19,10 +19,6 @@ export async function createTarget(
   systemPrompt: string,
   config?: TargetConfig,
 ): Promise<Target> {
-  const openrouter = createOpenRouter({
-    apiKey: config?.apiKey || process.env.OPENROUTER_API_KEY,
-  });
-
   let conversationHistory: ConversationTurn[] = [];
   let turnCount = 0;
   const model = config?.model || "x-ai/grok-3-mini";
@@ -60,7 +56,7 @@ export async function createTarget(
       messages.push({ role: "user" as const, content: userMessage });
 
       const response = await generateText({
-        model: openrouter(model),
+        model: resolveModel(model, { openrouterApiKey: config?.apiKey }),
         system: systemPrompt,
         messages,
         maxRetries: 2,

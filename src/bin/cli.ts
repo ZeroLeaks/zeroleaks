@@ -17,7 +17,7 @@ import {
   severityColor,
 } from "../ui";
 
-const VERSION = "1.3.2";
+const VERSION = "1.4.0";
 
 const DEFAULT_MODELS = {
   attacker: "anthropic/claude-opus-4.8",
@@ -65,6 +65,10 @@ program
     "0",
   )
   .option("--api-key <key>", "OpenRouter API key (or set OPENROUTER_API_KEY)")
+  .option(
+    "--openai-api-key <key>",
+    "OpenAI API key (or set OPENAI_API_KEY); openai/* and gpt-* models route to the OpenAI API",
+  )
   .option(
     "--attacker-model <model>",
     `Model for the attacker agent (default: ${DEFAULT_MODELS.attacker})`,
@@ -123,15 +127,17 @@ program
     }
 
     const apiKey = options.apiKey || process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
+    const openaiApiKey = options.openaiApiKey || process.env.OPENAI_API_KEY;
+    if (!apiKey && !openaiApiKey) {
       console.error(
         c.red(
-          "Error: OpenRouter API key required. Set OPENROUTER_API_KEY or use --api-key",
+          "Error: no API key. Set OPENROUTER_API_KEY (--api-key) and/or OPENAI_API_KEY (--openai-api-key).",
         ),
       );
       process.exit(1);
     }
-    process.env.OPENROUTER_API_KEY = apiKey;
+    if (apiKey) process.env.OPENROUTER_API_KEY = apiKey;
+    if (openaiApiKey) process.env.OPENAI_API_KEY = openaiApiKey;
 
     const mode = (options.mode || "dual") as
       | "extraction"

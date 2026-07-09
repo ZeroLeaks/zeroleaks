@@ -1,4 +1,4 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { resolveModel } from "../provider";
 import { generateObject } from "ai";
 import { z } from "zod";
 import type {
@@ -357,13 +357,11 @@ export class Inspector {
   private analysisHistory: InspectorOutput[] = [];
   private defenseFingerprint: DefenseFingerprint | null = null;
   private model: string;
-  private openrouter: ReturnType<typeof createOpenRouter>;
+  private apiKey?: string;
 
   constructor(model = "anthropic/claude-sonnet-5", apiKey?: string) {
     this.model = model;
-    this.openrouter = createOpenRouter({
-      apiKey: apiKey || process.env.OPENROUTER_API_KEY,
-    });
+    this.apiKey = apiKey;
   }
 
   async analyze(context: {
@@ -386,7 +384,7 @@ export class Inspector {
 
     try {
       const result = await generateObject({
-        model: this.openrouter(this.model),
+        model: resolveModel(this.model, { openrouterApiKey: this.apiKey }),
         schema: InspectorSchema,
         system: INSPECTOR_PERSONA,
         prompt,

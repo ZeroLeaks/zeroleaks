@@ -1,4 +1,4 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { resolveModel } from "../provider";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { generateId } from "../utils";
@@ -111,14 +111,12 @@ export class Attacker {
   private currentBranch: AttackNode[] = [];
   private exploredNodes: Map<string, AttackNode> = new Map();
   private consecutiveFailures: number = 0;
-  private openrouter: ReturnType<typeof createOpenRouter>;
+  private apiKey?: string;
   private model: string;
   private config: Required<Omit<AttackerConfig, "apiKey" | "model">>;
 
   constructor(config?: AttackerConfig) {
-    this.openrouter = createOpenRouter({
-      apiKey: config?.apiKey || process.env.OPENROUTER_API_KEY,
-    });
+    this.apiKey = config?.apiKey;
     this.model = config?.model || "anthropic/claude-sonnet-5";
     this.config = {
       maxBranchingFactor: config?.maxBranchingFactor ?? 3,
@@ -235,7 +233,7 @@ IMPORTANT: Generate attacks that would look like legitimate user messages.`;
 
     try {
       const result = await generateObject({
-        model: this.openrouter(this.model),
+        model: resolveModel(this.model, { openrouterApiKey: this.apiKey }),
         schema: AttackGenerationSchema,
         system: ATTACKER_PERSONA,
         prompt,
