@@ -172,7 +172,7 @@ export class Mutator {
     this.openrouter = createOpenRouter({
       apiKey: config?.apiKey || process.env.OPENROUTER_API_KEY,
     });
-    this.model = config?.model || "anthropic/claude-sonnet-4.5";
+    this.model = config?.model || "anthropic/claude-sonnet-5";
   }
 
   async generateMutations(

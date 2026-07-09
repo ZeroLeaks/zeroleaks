@@ -119,7 +119,7 @@ export class Attacker {
     this.openrouter = createOpenRouter({
       apiKey: config?.apiKey || process.env.OPENROUTER_API_KEY,
     });
-    this.model = config?.model || "anthropic/claude-sonnet-4.5";
+    this.model = config?.model || "anthropic/claude-sonnet-5";
     this.config = {
       maxBranchingFactor: config?.maxBranchingFactor ?? 3,
       maxTreeDepth: config?.maxTreeDepth ?? 5,

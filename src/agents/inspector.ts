@@ -359,7 +359,7 @@ export class Inspector {
   private model: string;
   private openrouter: ReturnType<typeof createOpenRouter>;
 
-  constructor(model = "anthropic/claude-sonnet-4.5", apiKey?: string) {
+  constructor(model = "anthropic/claude-sonnet-5", apiKey?: string) {
     this.model = model;
     this.openrouter = createOpenRouter({
       apiKey: apiKey || process.env.OPENROUTER_API_KEY,
