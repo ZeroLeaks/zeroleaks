@@ -17,12 +17,12 @@ import {
   severityColor,
 } from "../ui";
 
-const VERSION = "1.3.0";
+const VERSION = "1.3.1";
 
 const DEFAULT_MODELS = {
   attacker: "anthropic/claude-opus-4.8",
-  target: "anthropic/claude-sonnet-4.6",
-  evaluator: "anthropic/claude-sonnet-4.6",
+  target: "anthropic/claude-sonnet-5",
+  evaluator: "anthropic/claude-sonnet-5",
 };
 
 const program = new Command();

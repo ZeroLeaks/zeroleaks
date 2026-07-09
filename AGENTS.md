@@ -188,7 +188,7 @@ bun run build
 
 On a published GitHub release, `.github/workflows/publish.yml` publishes to GitHub Packages. The public npm package (`zeroleaks`) is published manually with `npm publish` — `prepublishOnly` runs `bun run build` first, so `dist/` is always fresh.
 
-Default models live in `DEFAULT_CONFIG` in `src/agents/engine.ts`: attacker `anthropic/claude-opus-4.8`, target/evaluator/judge `anthropic/claude-sonnet-4.6`. All are overridable per scan.
+Default models live in `DEFAULT_CONFIG` in `src/agents/engine.ts`: attacker `anthropic/claude-opus-4.8`, target/evaluator/judge `anthropic/claude-sonnet-5`. All are overridable per scan.
 
 ## Testing
 

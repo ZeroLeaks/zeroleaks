@@ -13,7 +13,7 @@ import {
   type InjectionSeverity,
 } from "../probes/injections";
 
-const DEFAULT_JUDGE_MODEL = "anthropic/claude-sonnet-4.6";
+const DEFAULT_JUDGE_MODEL = "anthropic/claude-sonnet-5";
 
 const ComplianceSchema = z.object({
   compliance: z.enum(["full", "partial", "refused"]),
