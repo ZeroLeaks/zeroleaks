@@ -43,7 +43,7 @@ This repo is the full scanner: a CLI and a TypeScript library, unlimited runs, y
 |-----------|------------|
 | Runtime | [Bun](https://bun.sh) |
 | Language | TypeScript |
-| LLM Provider | [OpenRouter](https://openrouter.ai) |
+| LLM Provider | [OpenRouter](https://openrouter.ai) (default) or [OpenAI](https://platform.openai.com) direct |
 | AI SDK | [Vercel AI SDK](https://ai-sdk.dev/) |
 | Architecture | Multi-agent orchestration |
 
@@ -236,13 +236,27 @@ interface ScanResult {
 }
 ```
 
+## Providers
+
+By default every model runs through [OpenRouter](https://openrouter.ai), so any OpenRouter slug works (`anthropic/...`, `x-ai/...`, `openai/...`, etc.).
+
+Set `OPENAI_API_KEY` and any OpenAI-style id — `openai/gpt-5`, `gpt-5`, `o3-mini` — goes straight to the OpenAI API instead of through OpenRouter. Point `OPENAI_BASE_URL` at an OpenAI-compatible endpoint (Azure, a gateway, a local server) if you need to. You can mix providers in one scan, e.g. an OpenAI target with an OpenRouter attacker:
+
+```bash
+zeroleaks scan -f ./prompt.txt \
+  --target-model gpt-5 --openai-api-key sk-... \
+  --attacker-model "anthropic/claude-opus-4.8"
+```
+
 ## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `OPENROUTER_API_KEY` | Your OpenRouter API key (required) |
+| `OPENROUTER_API_KEY` | OpenRouter key; used for all models by default |
+| `OPENAI_API_KEY` | Optional. Routes `openai/*` and `gpt-*`/`o*` models to the OpenAI API |
+| `OPENAI_BASE_URL` | Optional. Override the OpenAI endpoint (e.g. Azure) |
 
-Get your API key at [openrouter.ai](https://openrouter.ai)
+At least one key is required. Get an OpenRouter key at [openrouter.ai](https://openrouter.ai).
 
 ## Research references
 

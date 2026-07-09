@@ -39,7 +39,11 @@ bun test
 ## Environment Variables
 
 Copy `.env.example` to `.env` and set:
-- `OPENROUTER_API_KEY` - Required for LLM API calls
+- `OPENROUTER_API_KEY` - default provider for all models
+- `OPENAI_API_KEY` - optional; routes `openai/*` and `gpt-*`/`o*` model ids to the OpenAI API
+- `OPENAI_BASE_URL` - optional; override the OpenAI endpoint (Azure, gateway, local)
+
+At least one key is required.
 
 ## Project Architecture
 
@@ -52,10 +56,15 @@ src/
 ├── knowledge/    # Attack techniques & bypass methods
 ├── probes/       # Attack probes (injection corpus + extraction arsenal)
 ├── index.ts      # Main exports (public API)
+├── provider.ts   # Model provider resolver (OpenRouter default, OpenAI direct)
 ├── types.ts      # TypeScript type definitions
 ├── ui.ts         # Terminal output helpers (colors, score bar, boxes)
 └── utils.ts      # Utility functions
 ```
+
+### Providers (`src/provider.ts`)
+
+Agents never construct a provider directly — they call `resolveModel(modelId, { openrouterApiKey })`. It routes OpenAI-style ids (`openai/*`, `gpt-*`, `o1/o3/o4-*`) to the OpenAI API when `OPENAI_API_KEY` is set, and everything else (plus OpenAI ids with no OpenAI key) through OpenRouter. To add another provider, extend `resolveModel` — don't reintroduce `createOpenRouter` in the agents.
 
 ### Agent System (`src/agents/`)
 
