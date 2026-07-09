@@ -12,6 +12,12 @@ export interface InjectionTestResult {
   category: AttackCategory;
   evidence: string;
   severity: "critical" | "high" | "medium" | "low";
+  /** Modern behavioral-probe metadata (populated by the injection evaluator). */
+  probeId?: string;
+  probeCategory?: string;
+  intent?: string;
+  compliance?: "full" | "partial" | "refused";
+  prompt?: string;
 }
 
 export type InjectionTestType =
@@ -244,6 +250,16 @@ export interface ScanConfig {
   scanMode?: ScanMode;
   enableDualMode?: boolean;
   injectionTestTypes?: InjectionTestType[];
+  /** Filter modern injection probes by behavioral category. */
+  injectionCategories?: string[];
+  /** Filter modern injection probes by severity. */
+  injectionSeverities?: string[];
+  /** Cap the number of injection probes tested (0 = all). */
+  maxInjectionProbes?: number;
+  /** Include multi-turn grooming probes in the injection scan. */
+  enableMultiTurnInjection?: boolean;
+  /** Model used by the injection compliance judge. */
+  injectionEvaluatorModel?: string;
   onProgress?: (state: ScanProgress) => Promise<void>;
   onFinding?: (finding: Finding) => Promise<void>;
   onDefenseDetected?: (fingerprint: DefenseFingerprint) => Promise<void>;

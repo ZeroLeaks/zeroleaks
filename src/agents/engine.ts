@@ -40,7 +40,12 @@ import type {
   ScanResult,
   TemperatureConfig,
 } from "../types";
-import { injectionProbes, type InjectionProbe } from "../probes/injection";
+import {
+  INJECTION_PROBES,
+  type InjectionProbe,
+  type InjectionCategory,
+  type InjectionSeverity,
+} from "../probes/injections";
 
 const encoder = encodingForModel("gpt-4o");
 
@@ -57,9 +62,9 @@ const DEFAULT_CONFIG: ScanConfig = {
   bestOfNCount: 3,
   maxTokensPerTurn: 4000,
   maxTotalTokens: 100000,
-  attackerModel: "anthropic/claude-opus-4.6",
-  evaluatorModel: "anthropic/claude-sonnet-4.5",
-  targetModel: "anthropic/claude-sonnet-4.5",
+  attackerModel: "anthropic/claude-opus-4.8",
+  evaluatorModel: "anthropic/claude-sonnet-4.6",
+  targetModel: "anthropic/claude-sonnet-4.6",
   enableInspector: true,
   enableDefenseFingerprinting: false,
   enableAdaptiveTemperature: false,
@@ -152,7 +157,11 @@ export class ScanEngine {
     }
 
     if (this.config.scanMode === "injection" || this.config.enableDualMode) {
-      this.injectionEvaluator = createInjectionEvaluator(apiKey);
+      this.injectionEvaluator = createInjectionEvaluator({
+        apiKey,
+        model:
+          this.config.injectionEvaluatorModel || this.config.evaluatorModel,
+      });
     }
   }
 
@@ -203,6 +212,7 @@ export class ScanEngine {
     if (this.config.scanMode === "injection") {
       return this.runInjectionMode(target, startTime, maxDuration, {
         onInjectionResult,
+        onProgress,
       });
     }
 
@@ -526,30 +536,95 @@ export class ScanEngine {
     return null;
   }
 
+  private selectInjectionProbes(): InjectionProbe[] {
+    let probes = [...INJECTION_PROBES];
+
+    if (this.config.injectionCategories?.length) {
+      const categories = new Set(
+        this.config.injectionCategories as InjectionCategory[],
+      );
+      probes = probes.filter((p) => categories.has(p.category));
+    }
+
+    if (this.config.injectionSeverities?.length) {
+      const severities = new Set(
+        this.config.injectionSeverities as InjectionSeverity[],
+      );
+      probes = probes.filter((p) => severities.has(p.severity));
+    }
+
+    if (this.config.enableMultiTurnInjection === false) {
+      probes = probes.filter((p) => !p.multiTurn);
+    }
+
+    // Order by severity so the most dangerous probes run first under a cap.
+    const severityRank: Record<InjectionSeverity, number> = {
+      critical: 0,
+      high: 1,
+      medium: 2,
+      low: 3,
+    };
+    probes.sort((a, b) => severityRank[a.severity] - severityRank[b.severity]);
+
+    const limit = this.config.maxInjectionProbes ?? 20;
+    if (limit > 0 && probes.length > limit) {
+      probes = probes.slice(0, limit);
+    }
+
+    return probes;
+  }
+
+  private async runProbeConversation(
+    target: Awaited<ReturnType<typeof createTarget>>,
+    probe: InjectionProbe,
+  ): Promise<string> {
+    if (probe.multiTurn) {
+      let lastResponse = "";
+      const evaluateTurn = Math.min(
+        probe.multiTurn.evaluateTurn,
+        probe.multiTurn.turns.length - 1,
+      );
+      for (let i = 0; i < probe.multiTurn.turns.length; i++) {
+        const turnPrompt = probe.multiTurn.turns[i];
+        lastResponse = await target.respond(turnPrompt);
+        this.addToHistory("attacker", turnPrompt);
+        this.addToHistory("target", lastResponse);
+        // Stop once we reach the turn that carries the payload.
+        if (i >= evaluateTurn) break;
+      }
+      return lastResponse;
+    }
+
+    const targetResponse = await target.respond(probe.prompt);
+    this.addToHistory("attacker", probe.prompt);
+    this.addToHistory("target", targetResponse);
+    return targetResponse;
+  }
+
   private async runInjectionMode(
     target: Awaited<ReturnType<typeof createTarget>>,
     startTime: number,
     maxDuration: number,
     callbacks: {
       onInjectionResult?: (result: InjectionTestResult) => Promise<void>;
+      onProgress?: (progress: ScanProgress) => Promise<void>;
     },
   ): Promise<ScanResult> {
     const { onInjectionResult } = callbacks;
 
     if (!this.injectionEvaluator) {
-      this.injectionEvaluator = createInjectionEvaluator(
-        this.targetConfig.apiKey,
-      );
+      this.injectionEvaluator = createInjectionEvaluator({
+        apiKey: this.targetConfig.apiKey,
+        model:
+          this.config.injectionEvaluatorModel || this.config.evaluatorModel,
+      });
     }
 
-    const probesToTest = this.config.injectionTestTypes
-      ? injectionProbes.filter((p) =>
-          this.config.injectionTestTypes!.includes(p.injectionTestType),
-        )
-      : injectionProbes.slice(0, 20);
+    const probesToTest = this.selectInjectionProbes();
 
     let completionReason = "Injection scan completed";
     let consecutiveErrors = 0;
+    let probeIndex = 0;
 
     for (const probe of probesToTest) {
       const elapsedMs = Date.now() - startTime;
@@ -558,14 +633,13 @@ export class ScanEngine {
         break;
       }
 
-      try {
-        const targetResponse = await target.respond(probe.prompt);
+      probeIndex++;
 
-        this.addToHistory("attacker", probe.prompt);
-        this.addToHistory("target", targetResponse);
+      try {
+        const targetResponse = await this.runProbeConversation(target, probe);
 
         const result = await this.injectionEvaluator.evaluate({
-          probe: probe as InjectionProbe,
+          probe,
           targetResponse,
           history: this.conversationHistory,
           defenseProfile: this.strategist.getDefenseProfile(),
@@ -575,6 +649,22 @@ export class ScanEngine {
 
         if (onInjectionResult) {
           await onInjectionResult(result).catch(() => {});
+        }
+
+        if (callbacks.onProgress) {
+          await callbacks
+            .onProgress({
+              turn: probeIndex,
+              maxTurns: probesToTest.length,
+              phase: "exploitation",
+              strategy: "injection",
+              leakStatus: "none",
+              findingsCount: this.injectionResults.filter((r) => r.success)
+                .length,
+              treeNodesExplored: 0,
+              estimatedCompletion: probeIndex / probesToTest.length,
+            })
+            .catch(() => {});
         }
 
         target.resetConversation();
@@ -1296,8 +1386,14 @@ export async function runSecurityScan(
     enableDualMode?: boolean;
     scanMode?: "extraction" | "injection";
     orchestratorPattern?: "auto" | "siren" | "echo_chamber" | "tombRaider";
+    injectionEvaluatorModel?: string;
+    injectionCategories?: string[];
+    injectionSeverities?: string[];
+    maxInjectionProbes?: number;
+    enableMultiTurnInjection?: boolean;
     onProgress?: (turn: number, max: number) => Promise<void>;
     onFinding?: (finding: Finding) => Promise<void>;
+    onInjectionResult?: (result: InjectionTestResult) => Promise<void>;
   },
 ): Promise<ScanResult> {
   const engine = new ScanEngine({
@@ -1307,6 +1403,7 @@ export async function runSecurityScan(
       attackerModel: options?.attackerModel,
       targetModel: options?.targetModel,
       evaluatorModel: options?.evaluatorModel,
+      injectionEvaluatorModel: options?.injectionEvaluatorModel,
       enableInspector: options?.enableInspector,
       enableMultiTurnOrchestrator: options?.enableOrchestrator,
       enableAdaptiveTemperature: options?.enableOrchestrator,
@@ -1314,6 +1411,10 @@ export async function runSecurityScan(
       enableDualMode: options?.enableDualMode,
       scanMode: options?.scanMode,
       orchestratorPattern: options?.orchestratorPattern,
+      injectionCategories: options?.injectionCategories,
+      injectionSeverities: options?.injectionSeverities,
+      maxInjectionProbes: options?.maxInjectionProbes,
+      enableMultiTurnInjection: options?.enableMultiTurnInjection,
     },
   });
 
@@ -1325,6 +1426,7 @@ export async function runSecurityScan(
         }
       : undefined,
     onFinding: options?.onFinding,
+    onInjectionResult: options?.onInjectionResult,
   });
 }
 
