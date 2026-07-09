@@ -42,7 +42,14 @@ import {
   getCrescendoSequence,
   getProbesByResearch,
   getAllInjectionProbesAsStandard,
-} from "./injection";
+} from "./jailbreak-techniques";
+import {
+  INJECTION_PROBES,
+  INJECTION_CATEGORIES,
+  getInjectionProbesByCategory,
+  type InjectionProbe,
+  type InjectionCategory,
+} from "./injections";
 import type {
   AttackCategory,
   DefenseLevel,
@@ -79,7 +86,22 @@ export type ProbeCategory =
   | "hybrid"
   | "tool_exploit"
   | "garak"
-  | "injection";
+  | "injection"
+  | "extraction"
+  | "tool_hijacking"
+  | "indirect_injection"
+  | "authority_exploit"
+  | "multi_turn"
+  | "protocol_exploit";
+
+function toStandardProbe(p: InjectionProbe): Probe {
+  return {
+    id: p.id,
+    category: p.category,
+    technique: p.technique,
+    prompt: p.multiTurn?.turns.join("\n\n") || p.prompt,
+  };
+}
 
 export function getAllProbes(): Probe[] {
   const encodingAttacks = generateEncodingAttacks();
@@ -133,6 +155,7 @@ export function getAllProbes(): Probe[] {
     ...toolExploitProbesLegacy,
     ...garakProbesLegacy,
     ...injectionProbesLegacy,
+    ...INJECTION_PROBES.map(toStandardProbe),
   ];
 }
 
@@ -261,6 +284,15 @@ export function getProbesByCategory(category: ProbeCategory): Probe[] {
         technique: p.technique,
         prompt: p.prompt,
       }));
+    case "extraction":
+    case "tool_hijacking":
+    case "indirect_injection":
+    case "authority_exploit":
+    case "multi_turn":
+    case "protocol_exploit":
+      return getInjectionProbesByCategory(category as InjectionCategory).map(
+        toStandardProbe,
+      );
     default:
       return [];
   }
@@ -460,7 +492,38 @@ export {
   getCrescendoSequence,
   getProbesByResearch,
   getAllInjectionProbesAsStandard,
-} from "./injection";
+} from "./jailbreak-techniques";
 
-export type { InjectionProbe } from "./injection";
+export {
+  INJECTION_PROBES,
+  INJECTION_CATEGORIES,
+  INJECTION_SEVERITIES,
+  getInjectionProbesByCategory,
+  getInjectionProbesBySeverity,
+  getSingleTurnProbes,
+  getMultiTurnProbes,
+  countProbesByCategory,
+  generateDynamicProbes,
+  mapCategoryToTestType,
+} from "./injections";
+
+export {
+  ATTACK_CORPUS,
+  CORPUS_VERSION,
+  getSeedsByKind,
+  getSeedsForBenchmark,
+  getSeedsBySurface,
+} from "./redteam-corpus";
+
+export type {
+  InjectionProbe,
+  InjectionCategory,
+  InjectionSeverity,
+  UserTool,
+} from "./injections";
+export type {
+  AttackSeed,
+  AttackSeedKind,
+  AttackSurface,
+} from "./redteam-corpus";
 export type { GarakProbe };
