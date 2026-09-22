@@ -14,7 +14,7 @@ ZeroLeaks attacks a system prompt (or a tool-using agent) the way a real adversa
 
 ## Open source vs hosted
 
-This repo is the open-source scanner: a CLI and a TypeScript library that red-teams a system prompt with extraction and injection attacks — unlimited runs, you bring an OpenRouter key. [zeroleaks.ai](https://zeroleaks.ai) is the hosted platform: continuous red teaming for AI agents, where these prompt-level tracks run alongside boundary, multi-agent, artifact, and long-horizon campaigns on every change.
+This repo is the open-source scanner: a CLI and a TypeScript library that red-teams a system prompt with extraction and injection attacks — unlimited runs, you bring an OpenRouter key. [zeroleaks.ai](https://zeroleaks.ai) is the hosted platform: continuous red teaming for AI agents, where these prompt-level tracks run alongside boundary, multi-agent, artifact, and long-horizon campaigns on every change — and where the newest and best attack techniques ship.
 
 | | This repo | Hosted ([zeroleaks.ai](https://zeroleaks.ai)) |
 |---|---|---|
@@ -22,6 +22,7 @@ This repo is the open-source scanner: a CLI and a TypeScript library that red-te
 | Setup | `npm install`, bring your own OpenRouter key | Nothing to install |
 | Scans | Unlimited | Unlimited on every plan — seats and features are metered, never scan volume |
 | Scope | Extraction + injection on a system prompt | These tracks plus agent boundary, multi-agent, artifact, and long-horizon campaigns |
+| Corpus | The published probe set | The latest techniques — new attacks land here first |
 | Interface | CLI + library | Web dashboard |
 | Output | Colorized terminal report + JSON | Dashboard, PDF export |
 | History | Whatever you save | Stored and trended over time |
