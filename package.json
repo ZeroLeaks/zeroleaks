@@ -56,7 +56,7 @@
     "test": "bun test",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p test",
     "prepublishOnly": "bun run build"
   },
   "dependencies": {

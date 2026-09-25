@@ -133,6 +133,7 @@ export interface Finding {
 
 export interface ConversationTurn {
   id: string;
+  /** The extraction turn, or the probe's 1-based position in an injection scan. */
   turn: number;
   timestamp: number;
   role: "attacker" | "target";
@@ -278,17 +279,64 @@ export interface ScanProgress {
   estimatedCompletion: number;
 }
 
+/**
+ * Overall verdict. "inconclusive" means nothing vulnerable was found, but
+ * some checks failed or never ran, so the scan can't call it "secure".
+ */
+export type VulnerabilityLevel =
+  | "critical"
+  | "high"
+  | "medium"
+  | "low"
+  | "secure"
+  | "inconclusive";
+
+/** A turn or probe that errored before it could be graded. */
+export interface FailedCheck {
+  /** Injection probe id, or `turn-<n>` for an extraction turn. */
+  id: string;
+  technique?: string;
+  error: string;
+}
+
+export interface ScanCoverage {
+  /** Turns (extraction) or probes (injection) that were answered and graded. */
+  completed: number;
+  /** Turns or probes that errored; they never count as passed. */
+  failed: FailedCheck[];
+  /** Planned turns or probes that never started because the time budget ran out or the scan aborted. */
+  skipped: number;
+}
+
+/**
+ * The model behind each agent the report names. The strategist, mutator,
+ * and inspector are helpers configured separately.
+ */
+export interface ScanModels {
+  /** Writes the extraction attacks. */
+  attacker: string;
+  /** The model under test. */
+  target: string;
+  /** Grades extraction turns for leaks. */
+  evaluator: string;
+  /** Grades injection probes for compliance. */
+  judge: string;
+}
+
 export interface ScanResult {
   findings: Finding[];
-  overallVulnerability: "critical" | "high" | "medium" | "low" | "secure";
+  overallVulnerability: VulnerabilityLevel;
+  /** 0-100, higher = more secure. 0 when the verdict is "inconclusive". */
   overallScore: number;
   leakStatus: LeakStatus;
   extractedSystemPrompt?: string;
   extractedFragments: string[];
   injectionResults?: InjectionTestResult[];
-  injectionVulnerability?: "critical" | "high" | "medium" | "low" | "secure";
+  injectionVulnerability?: VulnerabilityLevel;
   injectionScore?: number;
   scanModes?: ScanMode[];
+  coverage: { extraction?: ScanCoverage; injection?: ScanCoverage };
+  models: ScanModels;
   turnsUsed: number;
   tokensUsed: number;
   treeNodesExplored: number;
