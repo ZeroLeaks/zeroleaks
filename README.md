@@ -126,6 +126,7 @@ zeroleaks techniques
 | `--no-multi-turn` | Skip multi-turn grooming probes |
 | `-d, --duration <ms>` | Time budget; 0 = no limit, otherwise more than 30000 (the last 30 s is kept for wrap-up) |
 | `--injection-model <model>` | Model for the compliance judge (defaults to the evaluator model) |
+| `--base-url <url>` | Send models to an OpenAI-compatible endpoint (see [Providers](#providers)) |
 | `-o, --output <file>` | Write the full JSON result to a file |
 | `--json` | Print the result as JSON to stdout |
 | `--no-color` / `-q, --quiet` | Disable color / suppress the progress spinner |
@@ -267,11 +268,31 @@ interface ScanResult {
 
 By default every model runs through [OpenRouter](https://openrouter.ai), so any OpenRouter slug works (`anthropic/...`, `x-ai/...`, `openai/...`, etc.).
 
-If `OPENAI_API_KEY` is set, OpenAI-style ids such as `openai/gpt-5`, `gpt-5`, and `o3-mini` go straight to the OpenAI API instead. To use an OpenAI-compatible endpoint (Azure, a gateway, a local server), set `OPENAI_BASE_URL`. One scan can mix providers, for example an OpenAI target with an OpenRouter attacker:
+If `OPENAI_API_KEY` is set, OpenAI-style ids such as `openai/gpt-5`, `gpt-5`, and `o3-mini` go straight to the OpenAI API instead. One scan can mix providers, for example an OpenAI target with an OpenRouter attacker:
 
 ```bash
 zeroleaks scan -f ./prompt.txt \
   --target-model gpt-5 --openai-api-key sk-... \
+  --attacker-model "anthropic/claude-opus-4.8"
+```
+
+### OpenAI-compatible endpoints
+
+Any server that speaks the OpenAI chat completions API works: Ollama, vLLM, LM Studio, llama.cpp, LiteLLM, Azure, Together, Groq, and so on. Pass its URL with `--base-url` (or set `OPENAI_BASE_URL`). With no OpenRouter key, every model goes to that endpoint, whatever its id. Local servers don't need a key.
+
+```bash
+zeroleaks scan -f ./prompt.txt --base-url http://localhost:11434/v1 \
+  --attacker-model llama3.1:70b --target-model llama3.1:8b \
+  --evaluator-model llama3.1:70b
+```
+
+For a hosted endpoint, add its key with `--openai-api-key`.
+
+If you also have an OpenRouter key, only OpenAI-style ids go to the endpoint and the rest go to OpenRouter. Prefix a model with `openai/` to send it to the endpoint anyway. The prefix is stripped, so `openai/llama3.1:8b` reaches the server as `llama3.1:8b`:
+
+```bash
+zeroleaks scan -f ./prompt.txt --base-url http://localhost:11434/v1 \
+  --target-model openai/llama3.1:8b \
   --attacker-model "anthropic/claude-opus-4.8"
 ```
 
@@ -281,9 +302,9 @@ zeroleaks scan -f ./prompt.txt \
 |----------|-------------|
 | `OPENROUTER_API_KEY` | OpenRouter key; used for all models by default |
 | `OPENAI_API_KEY` | Optional. Routes `openai/*` and `gpt-*`/`o*` models to the OpenAI API |
-| `OPENAI_BASE_URL` | Optional. Override the OpenAI endpoint (e.g. Azure) |
+| `OPENAI_BASE_URL` | Optional. An OpenAI-compatible endpoint, same as `--base-url` |
 
-At least one key is required. Get an OpenRouter key at [openrouter.ai](https://openrouter.ai).
+Set at least one key, or a base URL for a local server. Get an OpenRouter key at [openrouter.ai](https://openrouter.ai).
 
 ## Research references
 

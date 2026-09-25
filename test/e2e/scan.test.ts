@@ -17,7 +17,7 @@ import {
   SYSTEM_PROMPT,
   writeSummary,
 } from "./harness";
-import type { GraderBehavior } from "./mock-llm";
+import { type GraderBehavior, LOCAL_MOCK_MODELS } from "./mock-llm";
 
 setDefaultTimeout(30_000);
 beforeAll(resetArtifacts);
@@ -528,9 +528,9 @@ describe("library callbacks", () => {
 
 describe("models", () => {
   test("the models named on screen are the models tested", async () => {
-    // No model flags: every role falls back to its default. Those defaults
-    // route to OpenRouter, which fails locally without a key, so the scan
-    // makes no network calls and ends inconclusive.
+    // No model flags: every role falls back to its default. With no
+    // OpenRouter key the defaults go to the mock endpoint, which doesn't
+    // serve them, so the scan ends inconclusive.
     const run = await runCli("default models", { target: "refuse" }, [
       ...SCAN,
       "--mode",
@@ -547,6 +547,75 @@ describe("models", () => {
       target: shown("Target"),
       evaluator: shown("Evaluator"),
     });
+    const requested = new Set(run.requests.map((r) => r.model));
+    expect(requested.size).toBeGreaterThan(0);
+    for (const model of requested) {
+      expect([shown("Target"), shown("Evaluator")]).toContain(model);
+    }
+    expect(run.exitCode).toBe(EXIT.inconclusive);
+  });
+});
+
+const LOCAL_MODEL_FLAGS = (prefix = "") => [
+  "--attacker-model",
+  `${prefix}${LOCAL_MOCK_MODELS.attacker}`,
+  "--target-model",
+  `${prefix}${LOCAL_MOCK_MODELS.target}`,
+  "--evaluator-model",
+  `${prefix}${LOCAL_MOCK_MODELS.evaluator}`,
+  "--injection-model",
+  `${prefix}${LOCAL_MOCK_MODELS.judge}`,
+];
+const LOCAL_INJECTION = [
+  ...SCAN,
+  "--mode",
+  "injection",
+  "--no-multi-turn",
+  "--max-probes",
+  "4",
+];
+
+describe("OpenAI-compatible endpoint", () => {
+  test("--base-url alone sends every model to the endpoint, with no key", async () => {
+    const run = await runCli(
+      "base-url flag, no keys",
+      { target: "refuse", judge: JUDGE_REFUSED },
+      [...LOCAL_INJECTION, ...LOCAL_MODEL_FLAGS()],
+      { endpoint: "flag" },
+    );
+
+    expect(run.stdout).toMatch(/Endpoint\s+http:\/\/127\.0\.0\.1/);
+    expect(run.requests.length).toBeGreaterThan(0);
+    expect(run.requests.every((r) => !r.failed)).toBe(true);
+    expect(run.result?.coverage.injection?.completed).toBe(4);
+    expect(run.exitCode).toBe(EXIT.secure);
+  });
+
+  test("with an OpenRouter key, openai/ ids still reach the endpoint", async () => {
+    const run = await runCli(
+      "base-url flag, openai/ prefix",
+      { target: "refuse", judge: JUDGE_REFUSED },
+      [...LOCAL_INJECTION, ...LOCAL_MODEL_FLAGS("openai/")],
+      { endpoint: "flag", env: { OPENROUTER_API_KEY: "sk-or-unused" } },
+    );
+
+    // The prefix is stripped before the request goes out.
+    expect(run.requests.length).toBeGreaterThan(0);
+    for (const request of run.requests) {
+      expect(Object.values<string>(LOCAL_MOCK_MODELS)).toContain(request.model);
+    }
+    expect(run.exitCode).toBe(EXIT.secure);
+  });
+
+  test("a --base-url that isn't an http(s) URL is rejected before scanning", async () => {
+    const run = await runCli(
+      "invalid base-url",
+      { target: "refuse" },
+      [...LOCAL_INJECTION, "--base-url", "localhost:11434"],
+      { endpoint: "none" },
+    );
+
+    expect(run.stderr).toContain("invalid --base-url");
     expect(run.requests).toHaveLength(0);
     expect(run.exitCode).toBe(EXIT.inconclusive);
   });

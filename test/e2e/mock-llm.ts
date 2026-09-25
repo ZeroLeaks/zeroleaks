@@ -10,6 +10,14 @@ export const MOCK_MODELS = {
   judge: "gpt-mock-judge",
 } as const;
 
+/** Ids that don't look like OpenAI's, as a local server would serve. */
+export const LOCAL_MOCK_MODELS = {
+  attacker: "llama-mock-attacker",
+  target: "llama-mock-target",
+  evaluator: "llama-mock-evaluator",
+  judge: "llama-mock-judge",
+} as const;
+
 type MockRole = keyof typeof MOCK_MODELS;
 
 type TargetBehavior = "refuse" | "comply" | "leak" | "error";
@@ -117,7 +125,10 @@ export function startMockLlm(scenario: Scenario): MockLlm {
 }
 
 function roleFor(model: string): MockRole | "unknown" {
-  const entry = Object.entries(MOCK_MODELS).find(([, id]) => id === model);
+  const entry = [
+    ...Object.entries(MOCK_MODELS),
+    ...Object.entries(LOCAL_MOCK_MODELS),
+  ].find(([, id]) => id === model);
   return entry ? (entry[0] as MockRole) : "unknown";
 }
 
