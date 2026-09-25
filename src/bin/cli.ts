@@ -1,10 +1,28 @@
 #!/usr/bin/env node
 
-import { writeFileSync } from "fs";
+import {
+  accessSync,
+  constants,
+  existsSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "fs";
+import { dirname, resolve } from "path";
 import { Command } from "commander";
 import ora from "ora";
 import { runSecurityScan } from "../agents";
-import type { InjectionTestResult, ScanResult } from "../types";
+import { attemptedChecks, DEFAULT_MODELS } from "../agents/engine";
+import {
+  INJECTION_CATEGORIES,
+  INJECTION_SEVERITIES,
+} from "../probes/injections";
+import type {
+  InjectionTestResult,
+  ScanCoverage,
+  ScanResult,
+  VulnerabilityLevel,
+} from "../types";
 import {
   BANNER,
   box,
@@ -19,11 +37,85 @@ import {
 
 const VERSION = "1.4.0";
 
-const DEFAULT_MODELS = {
-  attacker: "anthropic/claude-opus-4.8",
-  target: "anthropic/claude-sonnet-5",
-  evaluator: "anthropic/claude-sonnet-5",
-};
+const EXIT = { secure: 0, vulnerable: 1, noVerdict: 2 } as const;
+
+function exitCodeFor(vulnerability: VulnerabilityLevel): number {
+  if (vulnerability === "secure") return EXIT.secure;
+  if (vulnerability === "inconclusive") return EXIT.noVerdict;
+  return EXIT.vulnerable;
+}
+
+/** process.exit() right after a large write to a pipe truncates the output. */
+function exitAfterFlush(code: number): void {
+  process.stdout.write("", () => process.exit(code));
+}
+
+function fail(message: string): never {
+  console.error(c.red(`Error: ${message}`));
+  process.exit(EXIT.noVerdict);
+}
+
+function readPromptFile(path: string): string {
+  try {
+    return readFileSync(path, "utf-8");
+  } catch (error) {
+    fail(
+      `cannot read the prompt file: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+function assertWritable(path: string): void {
+  let problem: string | undefined;
+  try {
+    if (!existsSync(path)) {
+      accessSync(dirname(resolve(path)), constants.W_OK);
+    } else if (statSync(path).isDirectory()) {
+      problem = "it is a directory";
+    } else {
+      accessSync(path, constants.W_OK);
+    }
+  } catch (error) {
+    problem = error instanceof Error ? error.message : String(error);
+  }
+  if (problem) fail(`cannot write the report to ${path}: ${problem}`);
+}
+
+/** A failed write must not hide the scan's verdict. */
+function saveReport(path: string, result: ScanResult, announce: boolean): void {
+  try {
+    writeFileSync(path, JSON.stringify(result, null, 2));
+  } catch (error) {
+    console.error(
+      c.red(
+        `Error: could not save the report to ${path}: ${error instanceof Error ? error.message : String(error)}`,
+      ),
+    );
+    return;
+  }
+  if (announce) console.log(bullet(`Full result written to ${c.bold(path)}`));
+}
+
+function parseCount(flag: string, value: string, min = 0): number {
+  const count = Number(value);
+  if (!Number.isInteger(count) || count < min) {
+    fail(`${flag} must be a whole number of at least ${min}, got "${value}"`);
+  }
+  return count;
+}
+
+function assertKnown(
+  flag: string,
+  values: string[] | undefined,
+  allowed: readonly string[],
+): void {
+  const unknown = values?.filter((v) => !allowed.includes(v)) ?? [];
+  if (unknown.length > 0) {
+    fail(
+      `unknown ${flag} ${unknown.map((v) => `"${v}"`).join(", ")}. Valid values: ${allowed.join(", ")}`,
+    );
+  }
+}
 
 const program = new Command();
 
@@ -32,7 +124,11 @@ program
   .description(
     "ZeroLeaks — AI Security Scanner. Test AI systems for prompt injection and system-prompt extraction vulnerabilities.",
   )
-  .version(VERSION, "-v, --version", "Show version number");
+  .version(VERSION, "-v, --version", "Show version number")
+  // Must precede .command() so subcommands inherit it.
+  .exitOverride((err) => {
+    process.exit(err.exitCode === 0 ? 0 : EXIT.noVerdict);
+  });
 
 /** Split repeated/comma-separated CLI list values into a flat array. */
 function collectList(value: string, previous: string[] = []): string[] {
@@ -115,26 +211,19 @@ program
 
     let systemPrompt: string;
     if (options.file) {
-      const fs = await import("fs");
-      systemPrompt = fs.readFileSync(options.file, "utf-8");
+      systemPrompt = readPromptFile(options.file);
     } else if (options.prompt) {
       systemPrompt = options.prompt;
     } else {
-      console.error(
-        c.red("Error: provide a system prompt with --prompt or --file"),
-      );
-      process.exit(1);
+      fail("provide a system prompt with --prompt or --file");
     }
 
     const apiKey = options.apiKey || process.env.OPENROUTER_API_KEY;
     const openaiApiKey = options.openaiApiKey || process.env.OPENAI_API_KEY;
     if (!apiKey && !openaiApiKey) {
-      console.error(
-        c.red(
-          "Error: no API key. Set OPENROUTER_API_KEY (--api-key) and/or OPENAI_API_KEY (--openai-api-key).",
-        ),
+      fail(
+        "no API key. Set OPENROUTER_API_KEY (--api-key) and/or OPENAI_API_KEY (--openai-api-key).",
       );
-      process.exit(1);
     }
     if (apiKey) process.env.OPENROUTER_API_KEY = apiKey;
     if (openaiApiKey) process.env.OPENAI_API_KEY = openaiApiKey;
@@ -144,13 +233,27 @@ program
       | "injection"
       | "dual";
     if (!["extraction", "injection", "dual"].includes(mode)) {
-      console.error(c.red(`Error: invalid mode "${mode}"`));
-      process.exit(1);
+      fail(`invalid mode "${mode}"`);
+    }
+    assertKnown(
+      "injection category",
+      options.injectionCategory,
+      INJECTION_CATEGORIES,
+    );
+    assertKnown("severity", options.severity, INJECTION_SEVERITIES);
+    if (options.output) assertWritable(options.output);
+
+    const maxTurns = parseCount("--turns", options.turns, 1);
+    const maxProbes = parseCount("--max-probes", options.maxProbes);
+    const maxDurationMs = parseCount("--duration", options.duration);
+    if (maxDurationMs > 0 && maxDurationMs <= 30_000) {
+      fail(
+        "--duration must be 0 (no limit) or more than 30000 ms; the scan keeps the last 30 s to wrap up",
+      );
     }
 
     const enableDualMode = mode === "dual";
     const scanMode = mode === "dual" ? "extraction" : mode;
-    const maxProbes = parseInt(options.maxProbes, 10);
 
     if (!options.json) {
       console.log(`\n${BANNER}  ${c.gray(`v${VERSION}`)}\n`);
@@ -179,10 +282,11 @@ program
 
     if (spinner) spinner.start(c.gray("Initializing security scan…"));
 
+    let result: ScanResult;
     try {
-      const result = await runSecurityScan(systemPrompt, {
-        maxTurns: parseInt(options.turns, 10),
-        maxDurationMs: parseInt(options.duration, 10),
+      result = await runSecurityScan(systemPrompt, {
+        maxTurns,
+        maxDurationMs,
         apiKey,
         attackerModel: options.attackerModel,
         targetModel: options.targetModel,
@@ -194,7 +298,7 @@ program
         enableOrchestrator: options.orchestrator,
         injectionCategories: options.injectionCategory,
         injectionSeverities: options.severity,
-        maxInjectionProbes: Number.isNaN(maxProbes) ? 20 : maxProbes,
+        maxInjectionProbes: maxProbes,
         enableMultiTurnInjection: options.multiTurn,
         onProgress: async (turn, max) => {
           if (!spinner) return;
@@ -210,32 +314,23 @@ program
           if (r.success) injectionHits++;
         },
       });
-
-      if (spinner) spinner.stop();
-
-      if (options.output) {
-        writeFileSync(options.output, JSON.stringify(result, null, 2));
-        if (!options.json) {
-          console.log(
-            bullet(`Full result written to ${c.bold(options.output)}`),
-          );
-        }
-      }
-
-      if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
-      } else {
-        printReport(result, mode);
-      }
-
-      process.exit(result.overallVulnerability === "secure" ? 0 : 1);
     } catch (error) {
       if (spinner) spinner.fail(c.red("Scan failed"));
       console.error(
         c.red(error instanceof Error ? error.message : String(error)),
       );
-      process.exit(1);
+      process.exit(EXIT.noVerdict);
     }
+    if (spinner) spinner.stop();
+
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      printReport(result, mode);
+    }
+    if (options.output) saveReport(options.output, result, !options.json);
+
+    exitAfterFlush(exitCodeFor(result.overallVulnerability));
   });
 
 function printReport(
@@ -244,7 +339,11 @@ function printReport(
 ): void {
   console.log(heading("Results"));
   console.log(
-    `  ${severityBadge(result.overallVulnerability)}   ${scoreBar(result.overallScore)}`,
+    `  ${severityBadge(result.overallVulnerability)}   ${
+      result.overallVulnerability === "inconclusive"
+        ? c.yellow("no score, some checks did not run")
+        : scoreBar(result.overallScore)
+    }`,
   );
   console.log(
     `  ${c.gray("Duration")} ${(result.duration / 1000).toFixed(1)}s   ${c.gray(
@@ -254,6 +353,8 @@ function printReport(
   if (result.aborted) {
     console.log(`  ${c.yellow(`⚠ ${result.completionReason}`)}`);
   }
+  printCoverage("Extraction", "turns", result.coverage.extraction);
+  printCoverage("Injection", "probes", result.coverage.injection);
 
   // Extraction findings
   if (mode !== "injection") {
@@ -272,9 +373,21 @@ function printReport(
         }
       }
     } else {
+      const extraction = result.coverage.extraction;
+      const fullyChecked =
+        extraction !== undefined &&
+        extraction.completed > 0 &&
+        extraction.failed.length === 0;
       console.log(heading("Extraction findings"));
       console.log(
-        bullet(c.green("No system-prompt content was extracted."), c.green),
+        fullyChecked
+          ? bullet(c.green("No system-prompt content was extracted."), c.green)
+          : bullet(
+              c.yellow(
+                "Nothing extracted, but not every turn was checked (see above).",
+              ),
+              c.yellow,
+            ),
       );
     }
   }
@@ -297,6 +410,29 @@ function printReport(
     console.log(`  ${line}`);
   }
   console.log();
+}
+
+function printCoverage(
+  mode: string,
+  checks: string,
+  coverage: ScanCoverage | undefined,
+): void {
+  if (!coverage) return;
+  const failed = coverage.failed.length;
+  const planned = attemptedChecks(coverage) + coverage.skipped;
+  console.log(
+    `  ${c.gray(mode)} ${coverage.completed}/${planned} ${checks} checked${
+      failed > 0 ? c.yellow(` · ${failed} failed`) : ""
+    }${coverage.skipped > 0 ? c.yellow(` · ${coverage.skipped} not run`) : ""}`,
+  );
+  for (const check of coverage.failed) {
+    const label = check.technique
+      ? `${check.id} (${check.technique})`
+      : check.id;
+    console.log(
+      `    ${c.yellow("✖")} ${label}: ${c.gray(truncate(check.error, 110))}`,
+    );
+  }
 }
 
 function printInjectionResults(results: InjectionTestResult[]): void {

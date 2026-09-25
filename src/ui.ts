@@ -40,8 +40,6 @@ export const c = {
   bgYellow: wrap(43, 49),
 };
 
-export type Severity = "critical" | "high" | "medium" | "low" | "secure";
-
 // Built from a char code so the source carries no literal control character.
 const ANSI_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
 
@@ -64,6 +62,8 @@ export function severityColor(
       return c.blue;
     case "secure":
       return c.green;
+    case "inconclusive":
+      return c.yellow;
     default:
       return c.gray;
   }
@@ -75,6 +75,7 @@ const SEVERITY_ICON: Record<string, string> = {
   medium: "●",
   low: "○",
   secure: "✔",
+  inconclusive: "?",
 };
 
 export function severityBadge(severity: string): string {

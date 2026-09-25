@@ -10,6 +10,8 @@ export interface Target {
   resetConversation: () => void;
 }
 
+export const DEFAULT_TARGET_MODEL = "anthropic/claude-sonnet-5";
+
 export interface TargetConfig {
   model?: string;
   apiKey?: string;
@@ -21,7 +23,7 @@ export async function createTarget(
 ): Promise<Target> {
   let conversationHistory: ConversationTurn[] = [];
   let turnCount = 0;
-  const model = config?.model || "x-ai/grok-3-mini";
+  const model = config?.model || DEFAULT_TARGET_MODEL;
 
   const target: Target = {
     systemPrompt,
