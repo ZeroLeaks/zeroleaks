@@ -9,20 +9,22 @@ Red-team your LLM system prompts and agent instructions from the command line.
 
 ZeroLeaks attacks a system prompt (or a tool-using agent) the way a real adversary would, then tells you how it held up. It runs two kinds of tests:
 
-- **Extraction** — can the model be talked into revealing its own system prompt?
-- **Injection** — can it be tricked into following instructions hidden in a document, a tool result, or a fake "admin" message, or into misusing a tool?
+- **Extraction.** Can the model be talked into revealing its own system prompt?
+- **Injection.** Can it be tricked into following instructions hidden in a document, a tool result, or a fake "admin" message? Can it be pushed into misusing a tool?
 
 ## Open source vs hosted
 
-This repo is the open-source scanner: a CLI and a TypeScript library that red-teams a system prompt with extraction and injection attacks — unlimited runs, you bring an OpenRouter key. [zeroleaks.ai](https://zeroleaks.ai) is the hosted platform: continuous red teaming for AI agents, where these prompt-level tracks run alongside boundary, multi-agent, artifact, and long-horizon campaigns on every change — and where the newest and best attack techniques ship.
+This repo is the open-source scanner. It's a CLI and a TypeScript library that runs extraction and injection attacks against a system prompt. Runs are unlimited, and you bring your own OpenRouter key.
+
+[zeroleaks.ai](https://zeroleaks.ai) is the hosted platform. It red-teams AI agents on every change, running these same prompt-level tracks next to boundary, multi-agent, artifact, and long-horizon campaigns. New attack techniques ship there first.
 
 | | This repo | Hosted ([zeroleaks.ai](https://zeroleaks.ai)) |
 |---|---|---|
 | Price | Free | Paid plans from $79/mo; Pro has a 14-day trial |
 | Setup | `npm install`, bring your own OpenRouter key | Nothing to install |
-| Scans | Unlimited | Unlimited on every plan — seats and features are metered, never scan volume |
+| Scans | Unlimited | Unlimited on every plan. Plans meter seats and features, not scan volume |
 | Scope | Extraction + injection on a system prompt | These tracks plus agent boundary, multi-agent, artifact, and long-horizon campaigns |
-| Corpus | The published probe set | The latest techniques — new attacks land here first |
+| Corpus | The published probe set | The latest techniques. New attacks land here first |
 | Interface | CLI + library | Web dashboard |
 | Output | Colorized terminal report + JSON | Dashboard, PDF export |
 | History | Whatever you save | Stored and trended over time |
@@ -31,21 +33,21 @@ This repo is the open-source scanner: a CLI and a TypeScript library that red-te
 
 ## Features
 
-- **Multi-agent attacks.** A strategist, attacker, evaluator, mutator, inspector, and orchestrator plan attacks, read the responses, and adapt on the fly.
-- **A real injection corpus.** 78 behavioral probes drawn from AgentDojo, InjecAgent, JailbreakBench, HarmBench, garak, promptfoo, and the OWASP LLM Top 10, split across extraction, tool hijacking, indirect injection, authority abuse, multi-turn grooming, and protocol exploits. Run `zeroleaks categories` for the live count.
-- **Compliance judging.** An LLM judge decides whether the agent actually complied (full, partial, or refused), with a quick rule-based check first. It looks at what the model *did*, not whether a canary word showed up.
+- **Multi-agent attacks.** Six agents (strategist, attacker, evaluator, mutator, inspector, orchestrator) plan each attack, read the target's reply, and change tactics mid-scan.
+- **Injection corpus.** 78 behavioral probes drawn from AgentDojo, InjecAgent, JailbreakBench, HarmBench, garak, promptfoo, and the OWASP LLM Top 10, split across extraction, tool hijacking, indirect injection, authority abuse, multi-turn grooming, and protocol exploits. Run `zeroleaks categories` for the live count.
+- **Compliance judging.** An LLM judge decides whether the agent actually complied (full, partial, or refused), after a quick rule-based check. The verdict comes from what the model *did*, so it catches compliance even when no canary word shows up.
 - **Multi-turn grooming.** Some probes build rapport over a few turns before dropping the payload.
-- **Tree of Attacks (TAP).** Branches the promising attack paths and prunes the dead ends.
-- **Defense fingerprinting.** Recognizes common guardrails (Prompt Shield, Llama Guard, and the like) and plays around them.
+- **Tree of Attacks (TAP).** Branches on attack paths that look promising and prunes the ones that stall.
+- **Defense fingerprinting.** Recognizes common guardrails (Prompt Shield, Llama Guard, and the like) and picks attacks that get around them.
 - **Pick your models.** Separate models for the attacker, target, evaluator, and judge.
 
-## Tech Stack
+## Tech stack
 
 | Component | Technology |
 |-----------|------------|
 | Runtime | [Bun](https://bun.sh) |
 | Language | TypeScript |
-| LLM Provider | [OpenRouter](https://openrouter.ai) (default) or [OpenAI](https://platform.openai.com) direct |
+| LLM provider | [OpenRouter](https://openrouter.ai) (default) or [OpenAI](https://platform.openai.com) direct |
 | AI SDK | [Vercel AI SDK](https://ai-sdk.dev/) |
 | Architecture | Multi-agent orchestration |
 
@@ -57,7 +59,7 @@ bun add zeroleaks
 npm install zeroleaks
 ```
 
-## Quick Start
+## Quick start
 
 ```typescript
 import { runSecurityScan } from "zeroleaks";
@@ -78,7 +80,7 @@ if (result.aborted) {
 }
 ```
 
-## CLI Usage
+## CLI usage
 
 ```bash
 # Set your API key
@@ -126,11 +128,11 @@ zeroleaks techniques
 | `--json` | Print the result as JSON to stdout |
 | `--no-color` / `-q, --quiet` | Disable color / suppress the progress spinner |
 
-## API Reference
+## API reference
 
 ### `runSecurityScan(systemPrompt, options?)`
 
-The one call you need for most cases. Give it a system prompt and it runs the scan.
+Most scans only need this. Pass a system prompt and optional settings.
 
 ```typescript
 const result = await runSecurityScan(systemPrompt, {
@@ -159,7 +161,7 @@ const result = await runSecurityScan(systemPrompt, {
 
 ### `createScanEngine(config?)`
 
-Drop down to the engine when you need to tune the internals (tree depth, branching, which stages run).
+Use the engine directly to tune tree depth, branching, and which attack stages run.
 
 ```typescript
 import { createScanEngine } from "zeroleaks";
@@ -181,7 +183,7 @@ const result = await engine.runScan(systemPrompt, {
 });
 ```
 
-## Attack Categories
+## Attack categories
 
 | Category | Description |
 |----------|-------------|
@@ -203,7 +205,7 @@ const result = await engine.runScan(systemPrompt, {
 
 ### Behavioral injection categories
 
-The injection scan uses a dedicated behavioral corpus. Run `zeroleaks categories` for live counts.
+The injection scan draws from its own behavioral corpus. Run `zeroleaks categories` for live counts.
 
 | Category | Description |
 |----------|-------------|
@@ -214,7 +216,7 @@ The injection scan uses a dedicated behavioral corpus. Run `zeroleaks categories
 | `multi_turn` | Grooming across turns, then escalating |
 | `protocol_exploit` | MCP shadowing, tool-description poisoning, rules-file abuse |
 
-## Scan Results
+## Scan results
 
 ```typescript
 interface ScanResult {
@@ -242,7 +244,7 @@ interface ScanResult {
 
 By default every model runs through [OpenRouter](https://openrouter.ai), so any OpenRouter slug works (`anthropic/...`, `x-ai/...`, `openai/...`, etc.).
 
-Set `OPENAI_API_KEY` and any OpenAI-style id — `openai/gpt-5`, `gpt-5`, `o3-mini` — goes straight to the OpenAI API instead of through OpenRouter. Point `OPENAI_BASE_URL` at an OpenAI-compatible endpoint (Azure, a gateway, a local server) if you need to. You can mix providers in one scan, e.g. an OpenAI target with an OpenRouter attacker:
+If `OPENAI_API_KEY` is set, OpenAI-style ids such as `openai/gpt-5`, `gpt-5`, and `o3-mini` go straight to the OpenAI API instead. To use an OpenAI-compatible endpoint (Azure, a gateway, a local server), set `OPENAI_BASE_URL`. One scan can mix providers, for example an OpenAI target with an OpenRouter attacker:
 
 ```bash
 zeroleaks scan -f ./prompt.txt \
@@ -250,7 +252,7 @@ zeroleaks scan -f ./prompt.txt \
   --attacker-model "anthropic/claude-opus-4.8"
 ```
 
-## Environment Variables
+## Environment variables
 
 | Variable | Description |
 |----------|-------------|
@@ -262,21 +264,21 @@ At least one key is required. Get an OpenRouter key at [openrouter.ai](https://o
 
 ## Research references
 
-The probes and attack patterns borrow from published work:
+The probes and attack patterns borrow from this published work and tooling:
 
-- **CVE-2025-32711** — EchoLeak vulnerability
-- **TAP** — Tree of Attacks with Pruning
-- **PAIR** — Prompt Automatic Iterative Refinement
-- **Crescendo** — Multi-turn trust escalation
-- **Best-of-N** — Sampling-based jailbreaking
-- **CPA-RAG** — Covert Poisoning Attack on RAG
-- **TopicAttack** — Gradual topic transition
-- **MCP Tool Poisoning** — Model Context Protocol exploits
-- **TombRaider** — Dual-agent jailbreak pattern
-- **Siren Framework** — Human-like multi-turn attacks
-- **AutoAdv** — Adaptive temperature scheduling
-- **Garak** — NVIDIA's LLM vulnerability scanner
-- **Skeleton Key** — Multi-turn guardrail bypass
+- CVE-2025-32711 (EchoLeak)
+- TAP (Tree of Attacks with Pruning)
+- PAIR (Prompt Automatic Iterative Refinement)
+- Crescendo, multi-turn trust escalation
+- Best-of-N sampling jailbreaks
+- CPA-RAG (Covert Poisoning Attack on RAG)
+- TopicAttack, gradual topic transition
+- MCP tool poisoning
+- TombRaider, a dual-agent jailbreak pattern
+- Siren, human-like multi-turn attacks
+- AutoAdv, adaptive temperature scheduling
+- garak, NVIDIA's LLM vulnerability scanner
+- Skeleton Key, a multi-turn guardrail bypass
 
 ## Contributing
 
@@ -292,4 +294,4 @@ This software is free to use for any non-competing purpose. It converts to Apach
 
 ---
 
-**Need enterprise features?** [Contact us](https://zeroleaks.ai/contact) for custom quotas, SLAs, and dedicated support.
+For custom quotas, SLAs, or dedicated support, [contact us](https://zeroleaks.ai/contact).
