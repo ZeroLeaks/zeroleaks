@@ -55,6 +55,14 @@ function fail(message: string): never {
   process.exit(EXIT.noVerdict);
 }
 
+function isHttpUrl(value: string): boolean {
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
 function readPromptFile(path: string): string {
   try {
     return readFileSync(path, "utf-8");
@@ -174,6 +182,10 @@ program
     "OpenAI API key (or set OPENAI_API_KEY); openai/* and gpt-* models route to the OpenAI API",
   )
   .option(
+    "--base-url <url>",
+    "OpenAI-compatible endpoint (or set OPENAI_BASE_URL), e.g. http://localhost:11434/v1",
+  )
+  .option(
     "--attacker-model <model>",
     `Model for the attacker agent (default: ${DEFAULT_MODELS.attacker})`,
   )
@@ -228,13 +240,18 @@ program
 
     const apiKey = options.apiKey || process.env.OPENROUTER_API_KEY;
     const openaiApiKey = options.openaiApiKey || process.env.OPENAI_API_KEY;
-    if (!apiKey && !openaiApiKey) {
+    const baseUrl = options.baseUrl || process.env.OPENAI_BASE_URL;
+    if (baseUrl && !isHttpUrl(baseUrl)) {
+      fail(`invalid --base-url "${baseUrl}"; expected an http(s) URL`);
+    }
+    if (!apiKey && !openaiApiKey && !baseUrl) {
       fail(
-        "no API key. Set OPENROUTER_API_KEY (--api-key) and/or OPENAI_API_KEY (--openai-api-key).",
+        "no API key. Set OPENROUTER_API_KEY (--api-key), OPENAI_API_KEY (--openai-api-key), or an OpenAI-compatible endpoint (--base-url).",
       );
     }
     if (apiKey) process.env.OPENROUTER_API_KEY = apiKey;
     if (openaiApiKey) process.env.OPENAI_API_KEY = openaiApiKey;
+    if (baseUrl) process.env.OPENAI_BASE_URL = baseUrl;
 
     const mode = (options.mode || "dual") as
       | "extraction"
@@ -271,6 +288,7 @@ program
           `${c.gray("Attacker")}   ${options.attackerModel || DEFAULT_MODELS.attacker}`,
           `${c.gray("Target")}     ${options.targetModel || DEFAULT_MODELS.target}`,
           `${c.gray("Evaluator")}  ${options.evaluatorModel || DEFAULT_MODELS.evaluator}`,
+          ...(baseUrl ? [`${c.gray("Endpoint")}   ${baseUrl}`] : []),
           ...(mode !== "extraction"
             ? [
                 `${c.gray("Probes")}     ${maxProbes === 0 ? "all" : maxProbes}${

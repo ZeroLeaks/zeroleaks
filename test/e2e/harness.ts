@@ -47,6 +47,14 @@ interface RunOptions {
   runtime?: "bun" | "node";
   /** A script to run with Bun in place of the CLI, such as LIBRARY_SCAN. */
   script?: string;
+  /**
+   * How the child finds the mock: "env" sets OPENAI_API_KEY and
+   * OPENAI_BASE_URL, "flag" passes only `--base-url`, "none" leaves it to
+   * the caller's args.
+   */
+  endpoint?: "env" | "flag" | "none";
+  /** Extra environment variables for the child. */
+  env?: Record<string, string>;
 }
 
 const runs: CliRun[] = [];
@@ -91,15 +99,24 @@ export async function runCli(
   name: string,
   scenario: Scenario,
   args: string[],
-  { runtime = "bun", script = CLI_PATH }: RunOptions = {},
+  {
+    runtime = "bun",
+    script = CLI_PATH,
+    endpoint = "env",
+    env,
+  }: RunOptions = {},
 ): Promise<CliRun> {
   const runDir = join(ARTIFACTS_DIR, slug(name));
   mkdirSync(runDir, { recursive: true });
   const reportPath = join(runDir, "result.json");
 
+  const mock = startMockLlm(scenario);
   const setsOutput = args.includes("-o") || args.includes("--output");
-  const cliArgs =
-    args[0] === "scan" && !setsOutput ? [...args, "-o", reportPath] : args;
+  const cliArgs = [
+    ...args,
+    ...(args[0] === "scan" && !setsOutput ? ["-o", reportPath] : []),
+    ...(endpoint === "flag" ? ["--base-url", mock.url] : []),
+  ];
   const command =
     runtime === "node"
       ? [
@@ -111,7 +128,6 @@ export async function runCli(
         ]
       : [process.execPath, "--no-env-file", script, ...cliArgs];
 
-  const mock = startMockLlm(scenario);
   try {
     const child = Bun.spawn(command, {
       cwd: runDir,
@@ -119,8 +135,10 @@ export async function runCli(
         PATH: process.env.PATH,
         HOME: process.env.HOME,
         NO_COLOR: "1",
-        OPENAI_API_KEY: "sk-mock",
-        OPENAI_BASE_URL: mock.url,
+        ...(endpoint === "env"
+          ? { OPENAI_API_KEY: "sk-mock", OPENAI_BASE_URL: mock.url }
+          : {}),
+        ...env,
       },
       stdout: "pipe",
       stderr: "pipe",

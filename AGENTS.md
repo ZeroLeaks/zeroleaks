@@ -41,9 +41,9 @@ bun test
 Copy `.env.example` to `.env` and set:
 - `OPENROUTER_API_KEY` - default provider for all models
 - `OPENAI_API_KEY` - optional; routes `openai/*` and `gpt-*`/`o*` model ids to the OpenAI API
-- `OPENAI_BASE_URL` - optional; override the OpenAI endpoint (Azure, gateway, local)
+- `OPENAI_BASE_URL` - optional; an OpenAI-compatible endpoint (same as `--base-url`)
 
-At least one key is required.
+At least one key is required, or a base URL for a keyless local server.
 
 ## Project Architecture
 
@@ -64,7 +64,7 @@ src/
 
 ### Providers (`src/provider.ts`)
 
-Agents never construct a provider directly — they call `resolveModel(modelId, { openrouterApiKey })`. It routes OpenAI-style ids (`openai/*`, `gpt-*`, `o1/o3/o4-*`) to the OpenAI API when `OPENAI_API_KEY` is set, and everything else (plus OpenAI ids with no OpenAI key) through OpenRouter. To add another provider, extend `resolveModel` — don't reintroduce `createOpenRouter` in the agents.
+Agents never construct a provider directly — they call `resolveModel(modelId, { openrouterApiKey })`. Without `OPENAI_BASE_URL`, it routes OpenAI-style ids (`openai/*`, `gpt-*`, `o1/o3/o4-*`) to the OpenAI API when `OPENAI_API_KEY` is set, and everything else (plus OpenAI ids with no OpenAI key) through OpenRouter. With `OPENAI_BASE_URL`, OpenAI-style ids always go to that endpoint, and so does every other id when there's no OpenRouter key. A leading `openai/` is stripped before the request. To add another provider, extend `resolveModel` — don't reintroduce `createOpenRouter` in the agents.
 
 ### Agent System (`src/agents/`)
 
