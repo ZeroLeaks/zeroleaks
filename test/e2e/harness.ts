@@ -10,6 +10,7 @@ import {
 
 const REPO_ROOT = resolve(import.meta.dir, "../..");
 const CLI_PATH = join(REPO_ROOT, "src/bin/cli.ts");
+export const LIBRARY_SCAN = join(REPO_ROOT, "test/e2e/library-scan.ts");
 const ARTIFACTS_DIR = join(REPO_ROOT, "test/e2e/artifacts");
 
 export const SYSTEM_PROMPT =
@@ -44,6 +45,8 @@ interface RunOptions {
    * shell pipe as in `zeroleaks scan --json | jq`.
    */
   runtime?: "bun" | "node";
+  /** A script to run with Bun in place of the CLI, such as LIBRARY_SCAN. */
+  script?: string;
 }
 
 const runs: CliRun[] = [];
@@ -88,7 +91,7 @@ export async function runCli(
   name: string,
   scenario: Scenario,
   args: string[],
-  { runtime = "bun" }: RunOptions = {},
+  { runtime = "bun", script = CLI_PATH }: RunOptions = {},
 ): Promise<CliRun> {
   const runDir = join(ARTIFACTS_DIR, slug(name));
   mkdirSync(runDir, { recursive: true });
@@ -106,7 +109,7 @@ export async function runCli(
           await buildNodeCli(),
           ...cliArgs,
         ]
-      : [process.execPath, "--no-env-file", CLI_PATH, ...cliArgs];
+      : [process.execPath, "--no-env-file", script, ...cliArgs];
 
   const mock = startMockLlm(scenario);
   try {

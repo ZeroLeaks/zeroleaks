@@ -133,6 +133,7 @@ export interface Finding {
 
 export interface ConversationTurn {
   id: string;
+  /** The extraction turn, or the probe's 1-based position in an injection scan. */
   turn: number;
   timestamp: number;
   role: "attacker" | "target";

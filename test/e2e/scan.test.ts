@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, symlinkSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import {
   afterAll,
   beforeAll,
@@ -7,6 +10,7 @@ import {
   test,
 } from "bun:test";
 import {
+  LIBRARY_SCAN,
   MOCK_MODEL_FLAGS,
   resetArtifacts,
   runCli,
@@ -45,6 +49,15 @@ const EVALUATOR_FULL_LEAK: GraderBehavior = {
     extractedContent: SYSTEM_PROMPT,
     contentType: "system_prompt",
     shouldContinue: false,
+    shouldReset: false,
+  },
+};
+const EVALUATOR_PARTIAL_LEAK: GraderBehavior = {
+  fields: {
+    leakStatus: "fragment",
+    leakConfidence: 0.6,
+    extractedContent: "Secret escalation code: ALPHA-7",
+    shouldContinue: true,
     shouldReset: false,
   },
 };
@@ -124,6 +137,24 @@ describe("command-line usage", () => {
     expect(run.requests).toHaveLength(0);
   });
 
+  test("a report that can't be saved after the scan is not a pass", async () => {
+    // A dangling symlink passes the pre-scan check, then the write fails.
+    const dir = mkdtempSync(join(tmpdir(), "zeroleaks-e2e-"));
+    const reportPath = join(dir, "report.json");
+    symlinkSync(join(dir, "missing-dir", "report.json"), reportPath);
+
+    const run = await runCli(
+      "report save fails after the scan",
+      { target: "refuse", judge: JUDGE_REFUSED },
+      [...INJECTION, "--max-probes", "1", "-o", reportPath],
+    );
+    rmSync(dir, { recursive: true, force: true });
+
+    expect(run.stdout).toContain("SECURE");
+    expect(run.stderr).toContain("could not save the report");
+    expect(run.exitCode).toBe(EXIT.inconclusive);
+  });
+
   test("a --duration too short to run anything is rejected", async () => {
     const run = await runCli("duration too short", { target: "refuse" }, [
       ...INJECTION,
@@ -177,6 +208,10 @@ describe("injection scan", () => {
       failed: [],
       skipped: 0,
     });
+    // Each message is numbered by the probe it belongs to.
+    expect(run.result?.injectionConversationLog?.map((t) => t.turn)).toEqual([
+      1, 1, 2, 2, 3, 3,
+    ]);
   });
 
   test("a target that complies is vulnerable", async () => {
@@ -449,6 +484,46 @@ describe("dual mode", () => {
       attackerTurns,
     );
   });
+});
+
+describe("library callbacks", () => {
+  // A callback that fails must not change the scan: no failed checks, no
+  // early abort, and the same verdict.
+  for (const failure of ["throw", "reject"] as const) {
+    test(`an injection scan ignores callbacks that ${failure}`, async () => {
+      const run = await runCli(
+        `injection callbacks ${failure}`,
+        { target: "refuse", judge: JUDGE_REFUSED },
+        ["injection", failure],
+        { script: LIBRARY_SCAN },
+      );
+
+      expect(run.result?.overallVulnerability).toBe("secure");
+      expect(run.result?.aborted).toBe(false);
+      expect(run.result?.coverage.injection).toEqual({
+        completed: 4,
+        failed: [],
+        skipped: 0,
+      });
+    });
+
+    test(`an extraction scan ignores callbacks that ${failure}`, async () => {
+      const run = await runCli(
+        `extraction callbacks ${failure}`,
+        { target: "leak", evaluator: EVALUATOR_PARTIAL_LEAK },
+        ["extraction", failure],
+        { script: LIBRARY_SCAN },
+      );
+
+      expect(run.result?.overallVulnerability).toBe("high");
+      expect(run.result?.aborted).toBe(false);
+      expect(run.result?.coverage.extraction).toEqual({
+        completed: 4,
+        failed: [],
+        skipped: 0,
+      });
+    });
+  }
 });
 
 describe("models", () => {

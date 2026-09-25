@@ -93,6 +93,19 @@ function definedOnly<T extends object>(options: T | undefined): Partial<T> {
   ) as Partial<T>;
 }
 
+/**
+ * Calls a scan callback and ignores any failure, including a synchronous
+ * throw, so a caller's callback can't fail checks or abort the scan.
+ */
+async function notify<T>(
+  callback: ((value: T) => Promise<void>) | undefined,
+  value: T,
+): Promise<void> {
+  try {
+    await callback?.(value);
+  } catch {}
+}
+
 export function attemptedChecks(coverage: ScanCoverage): number {
   return coverage.completed + coverage.failed.length;
 }
@@ -396,11 +409,17 @@ export class ScanEngine {
 
         this.addToHistory(
           this.conversationHistory,
+          this.turnCount,
           "attacker",
           attackPrompt,
           attackNode,
         );
-        this.addToHistory(this.conversationHistory, "target", targetResponse);
+        this.addToHistory(
+          this.conversationHistory,
+          this.turnCount,
+          "target",
+          targetResponse,
+        );
 
         if (this.inspector && this.config.enableDefenseFingerprinting) {
           const analysis = await this.inspector.analyze({
@@ -413,11 +432,7 @@ export class ScanEngine {
 
           if (analysis.defenseFingerprint && !this.defenseFingerprint) {
             this.defenseFingerprint = analysis.defenseFingerprint;
-            if (onDefenseDetected) {
-              await onDefenseDetected(analysis.defenseFingerprint).catch(
-                () => {},
-              );
-            }
+            await notify(onDefenseDetected, analysis.defenseFingerprint);
           }
         }
 
@@ -446,9 +461,7 @@ export class ScanEngine {
           );
           this.findings.push(finding);
 
-          if (onFinding) {
-            await onFinding(finding).catch(() => {});
-          }
+          await notify(onFinding, finding);
         }
 
         if (this.shouldUpdateLeakStatus(evalOutput.status)) {
@@ -498,9 +511,7 @@ export class ScanEngine {
           }
         }
 
-        if (onProgress) {
-          await onProgress(this.getProgress()).catch(() => {});
-        }
+        await notify(onProgress, this.getProgress());
 
         this.consecutiveErrors = 0;
       } catch (error) {
@@ -668,6 +679,7 @@ export class ScanEngine {
   private async runProbeConversation(
     target: Awaited<ReturnType<typeof createTarget>>,
     probe: InjectionProbe,
+    turn: number,
     history: ConversationTurn[],
   ): Promise<string> {
     if (probe.multiTurn) {
@@ -679,8 +691,8 @@ export class ScanEngine {
       for (let i = 0; i < probe.multiTurn.turns.length; i++) {
         const turnPrompt = probe.multiTurn.turns[i];
         lastResponse = await target.respond(turnPrompt);
-        this.addToHistory(history, "attacker", turnPrompt);
-        this.addToHistory(history, "target", lastResponse);
+        this.addToHistory(history, turn, "attacker", turnPrompt);
+        this.addToHistory(history, turn, "target", lastResponse);
         // Stop once we reach the turn that carries the payload.
         if (i >= evaluateTurn) break;
       }
@@ -688,8 +700,8 @@ export class ScanEngine {
     }
 
     const targetResponse = await target.respond(probe.prompt);
-    this.addToHistory(history, "attacker", probe.prompt);
-    this.addToHistory(history, "target", targetResponse);
+    this.addToHistory(history, turn, "attacker", probe.prompt);
+    this.addToHistory(history, turn, "target", targetResponse);
     return targetResponse;
   }
 
@@ -742,6 +754,7 @@ export class ScanEngine {
         const targetResponse = await this.runProbeConversation(
           target,
           probe,
+          probeIndex,
           probeHistory,
         );
 
@@ -755,25 +768,17 @@ export class ScanEngine {
         this.injectionResults.push(result);
         coverage.completed++;
 
-        if (onInjectionResult) {
-          await onInjectionResult(result).catch(() => {});
-        }
-
-        if (callbacks.onProgress) {
-          await callbacks
-            .onProgress({
-              turn: probeIndex,
-              maxTurns: probesToTest.length,
-              phase: "exploitation",
-              strategy: "injection",
-              leakStatus: "none",
-              findingsCount: this.injectionResults.filter((r) => r.success)
-                .length,
-              treeNodesExplored: 0,
-              estimatedCompletion: probeIndex / probesToTest.length,
-            })
-            .catch(() => {});
-        }
+        await notify(onInjectionResult, result);
+        await notify(callbacks.onProgress, {
+          turn: probeIndex,
+          maxTurns: probesToTest.length,
+          phase: "exploitation",
+          strategy: "injection",
+          leakStatus: "none",
+          findingsCount: this.injectionResults.filter((r) => r.success).length,
+          treeNodesExplored: 0,
+          estimatedCompletion: probeIndex / probesToTest.length,
+        });
 
         consecutiveErrors = 0;
       } catch (error) {
@@ -1114,13 +1119,14 @@ export class ScanEngine {
 
   private addToHistory(
     history: ConversationTurn[],
+    turnNumber: number,
     role: "attacker" | "target",
     content: string,
     attackNode?: AttackNode,
   ): void {
     const turn: ConversationTurn = {
       id: generateId("turn"),
-      turn: this.turnCount,
+      turn: turnNumber,
       timestamp: Date.now(),
       role,
       content,

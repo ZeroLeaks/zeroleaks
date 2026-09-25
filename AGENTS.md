@@ -210,7 +210,7 @@ Default models live in `DEFAULT_CONFIG` in `src/agents/engine.ts`: attacker `ant
 bun test
 ```
 
-The tests are end to end. `test/e2e/scan.test.ts` runs the real CLI as a subprocess against a mock OpenAI-compatible server (`test/e2e/mock-llm.ts`). Each role gets its own mock model id (`gpt-mock-target`, `gpt-mock-judge`, ...) and a scripted behavior (refuse, comply, leak, error, malformed output). They need no API key or network. Each run's report, exit code, and mock request log go to `test/e2e/artifacts/`, along with a `summary.md` table. CI (`.github/workflows/ci.yml`) runs lint, typecheck, build, and the suite on every PR, and uploads the artifacts.
+The tests are end to end. `test/e2e/scan.test.ts` runs the real CLI as a subprocess against a mock OpenAI-compatible server (`test/e2e/mock-llm.ts`). Each role gets its own mock model id (`gpt-mock-target`, `gpt-mock-judge`, ...) and a scripted behavior (refuse, comply, leak, error, malformed output). They need no API key or network. Library-only behavior, such as scan callbacks, goes through `test/e2e/library-scan.ts`, a script that calls `runSecurityScan` and is spawned the same way. Each run's report, exit code, and mock request log go to `test/e2e/artifacts/`, along with a `summary.md` table. CI (`.github/workflows/ci.yml`) runs lint, typecheck, build, and the suite on every PR, and uploads the artifacts.
 
 When you fix a scan-result bug, add a scenario that fails on the old code first.
 

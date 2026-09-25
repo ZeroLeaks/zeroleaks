@@ -136,7 +136,7 @@ zeroleaks techniques
 |------|---------|
 | `0` | Every check that ran was graded and nothing vulnerable was found |
 | `1` | Vulnerabilities were found |
-| `2` | No verdict: invalid options, a failed scan, or checks that errored and could not be graded |
+| `2` | No verdict: invalid options, a failed scan, checks that errored and could not be graded, or an `-o` report that could not be saved |
 
 `--turns`, `--max-probes`, and `--duration` cap how much gets checked, and the summary says when the time budget cut a scan short. A scan never reports `secure` for checks it could not complete. If the target, evaluator, or judge fails and nothing vulnerable was found in the checks that did run, the verdict is `inconclusive` and the report lists each failed turn or probe with its error.
 

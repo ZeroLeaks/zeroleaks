@@ -81,8 +81,15 @@ function assertWritable(path: string): void {
   if (problem) fail(`cannot write the report to ${path}: ${problem}`);
 }
 
-/** A failed write must not hide the scan's verdict. */
-function saveReport(path: string, result: ScanResult, announce: boolean): void {
+/**
+ * Prints a failed write instead of throwing, so the verdict still shows.
+ * Returns whether the report was saved.
+ */
+function saveReport(
+  path: string,
+  result: ScanResult,
+  announce: boolean,
+): boolean {
   try {
     writeFileSync(path, JSON.stringify(result, null, 2));
   } catch (error) {
@@ -91,9 +98,10 @@ function saveReport(path: string, result: ScanResult, announce: boolean): void {
         `Error: could not save the report to ${path}: ${error instanceof Error ? error.message : String(error)}`,
       ),
     );
-    return;
+    return false;
   }
   if (announce) console.log(bullet(`Full result written to ${c.bold(path)}`));
+  return true;
 }
 
 function parseCount(flag: string, value: string, min = 0): number {
@@ -328,9 +336,12 @@ program
     } else {
       printReport(result, mode);
     }
-    if (options.output) saveReport(options.output, result, !options.json);
+    const saved =
+      !options.output || saveReport(options.output, result, !options.json);
 
-    exitAfterFlush(exitCodeFor(result.overallVulnerability));
+    exitAfterFlush(
+      saved ? exitCodeFor(result.overallVulnerability) : EXIT.noVerdict,
+    );
   });
 
 function printReport(
