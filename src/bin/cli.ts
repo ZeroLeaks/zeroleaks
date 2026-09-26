@@ -35,7 +35,7 @@ import {
   severityColor,
 } from "../ui";
 
-const VERSION = "1.4.0";
+const VERSION = "1.5.0";
 
 const EXIT = { secure: 0, vulnerable: 1, noVerdict: 2 } as const;
 

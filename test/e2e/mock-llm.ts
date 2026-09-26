@@ -42,6 +42,8 @@ export interface MockRequest {
   model: string;
   /** Conversation messages sent, not counting the system prompt. */
   messages: number;
+  /** Top-level fields of the structured output asked for; empty for plain text. */
+  fields: string[];
   failed: boolean;
 }
 
@@ -87,6 +89,9 @@ export function startMockLlm(scenario: Scenario): MockLlm {
         role,
         model: body.model,
         messages: body.messages.filter((m) => m.role !== "system").length,
+        fields: Object.keys(
+          body.tools?.[0]?.function.parameters.properties ?? {},
+        ),
         failed: false,
       };
       requests.push(record);

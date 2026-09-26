@@ -7,29 +7,34 @@ Red-team your LLM system prompts and agent instructions from the command line.
 
 ## What it does
 
-ZeroLeaks attacks a system prompt (or a tool-using agent) the way a real adversary would, then tells you how it held up. It runs two kinds of tests:
+ZeroLeaks loads your system prompt into a model you choose, attacks that model the way a real adversary would, then tells you how it held up. Everything runs on your machine with your own model-provider keys. There are two kinds of tests:
 
 - **Extraction.** Can the model be talked into revealing its own system prompt?
-- **Injection.** Can it be tricked into following instructions hidden in a document, a tool result, or a fake "admin" message? Can it be pushed into misusing a tool?
+- **Injection.** Can it be tricked into following instructions hidden in a document, a tool result, or a fake "admin" message? Will it agree to misuse a tool?
 
-## Open source vs hosted
+The target is the model plus your prompt. No tools run, and no application code or memory is involved.
 
-This repo is the open-source scanner. It's a CLI and a TypeScript library that runs extraction and injection attacks against a system prompt. Runs are unlimited, and you bring your own OpenRouter key.
+## This package vs hosted ZeroLeaks
 
-[zeroleaks.ai](https://zeroleaks.ai) is the hosted platform. It red-teams AI agents on every change, running these same prompt-level tracks next to boundary, multi-agent, artifact, and long-horizon campaigns. New attack techniques ship there first.
+This repo is a standalone, source-available scanner for system prompts, shipped as a CLI and a TypeScript library. Runs are unlimited, and you pay your model provider (OpenRouter, OpenAI, or any OpenAI-compatible endpoint) directly.
+
+[zeroleaks.ai](https://zeroleaks.ai) is the hosted product, and it tests something else. It red-teams a running AI agent, including its tools, memory, credentials, and the other agents it talks to. It profiles the agent, derives the rules the agent must never break, and attacks those rules on every change. New attack techniques ship there first.
+
+Hosted agent scans don't try to extract the system prompt. They check what sensitive data leaks from the agent's context, such as credentials, internal hosts, and tool schemas, and start with a short reconnaissance of the agent. The hosted API no longer runs prompt scans, so this package is where you test a system prompt on its own.
 
 | | This repo | Hosted ([zeroleaks.ai](https://zeroleaks.ai)) |
 |---|---|---|
-| Price | Free | Paid plans from $79/mo; Pro has a 14-day trial |
-| Setup | `npm install`, bring your own OpenRouter key | Nothing to install |
-| Scans | Unlimited | Unlimited on every plan. Plans meter seats and features, not scan volume |
-| Scope | Extraction + injection on a system prompt | These tracks plus agent boundary, multi-agent, artifact, and long-horizon campaigns |
+| Price | Free to use under the [FSL](#license); you pay your model provider | Paid plans (Pro, Team, Business, Enterprise). No free plan; Pro has a 14-day trial |
+| Setup | `npm install`, bring your own model-provider key | Link an agent endpoint, or run scans from your app with `@zeroleaks/sdk` |
+| Scans | Unlimited | Unlimited on every plan, with a per-plan cap on concurrent and hourly scans |
+| Target | A model running your system prompt | Your deployed or in-process agent, with real tool calls traced |
+| Scope | Extraction + injection on a system prompt | Agent boundary, secrets-in-context, multi-agent, artifact, and long-horizon campaigns |
 | Corpus | The published probe set | The latest techniques. New attacks land here first |
-| Interface | CLI + library | Web dashboard |
-| Output | Colorized terminal report + JSON | Dashboard, PDF export |
+| Interface | CLI + library | Web dashboard, REST API, and SDK |
+| Output | Colorized terminal report + JSON | Stored reports with a policy or config fix per finding, PDF export |
 | History | Whatever you save | Stored and trended over time |
-| CI/CD | Roll your own (exit 1 on findings, 2 when a scan can't reach a verdict) | Managed integration |
-| Support | GitHub issues | Priority support |
+| CI/CD | Roll your own (exit 1 on findings, 2 when a scan can't reach a verdict) | REST API and `@zeroleaks/sdk` |
+| Support | GitHub issues | Priority support on Business and Enterprise |
 
 ## Features
 
@@ -336,7 +341,7 @@ Contributions are welcome. Please open an issue first to discuss what you'd like
 
 Copyright (c) 2026 ZeroLeaks
 
-This software is free to use for any non-competing purpose. It converts to Apache 2.0 on January 21, 2028.
+ZeroLeaks is source-available, not open source. You can use, modify, and redistribute it for any purpose except offering a competing commercial product or service. Each release converts to Apache 2.0 on the Change Date in [LICENSE](LICENSE), which is two years after the release is published or January 21, 2028, whichever comes first.
 
 ---
 

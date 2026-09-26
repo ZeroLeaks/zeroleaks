@@ -86,10 +86,16 @@ const DEFAULT_CONFIG: ScanConfig = {
   scanMode: "extraction",
 };
 
-/** Spreading `{ key: undefined }` over the defaults would erase them. */
-function definedOnly<T extends object>(options: T | undefined): Partial<T> {
+/**
+ * Spreading `{ key: undefined }` over the defaults would erase them. An empty
+ * string counts as left out too: it is what `--target-model "$MODEL"` passes
+ * when the variable is unset.
+ */
+function providedOnly<T extends object>(options: T | undefined): Partial<T> {
   return Object.fromEntries(
-    Object.entries(options ?? {}).filter(([, value]) => value !== undefined),
+    Object.entries(options ?? {}).filter(
+      ([, value]) => value !== undefined && value !== "",
+    ),
   ) as Partial<T>;
 }
 
@@ -182,7 +188,7 @@ export class ScanEngine {
   constructor(config?: EngineConfig) {
     const apiKey = config?.apiKey || process.env.OPENROUTER_API_KEY;
 
-    this.config = { ...DEFAULT_CONFIG, ...definedOnly(config?.scan) };
+    this.config = { ...DEFAULT_CONFIG, ...providedOnly(config?.scan) };
 
     // Agents get these exact values, so `result.models` reports what ran.
     this.models = {
@@ -197,32 +203,32 @@ export class ScanEngine {
 
     this.targetConfig = {
       apiKey,
-      ...definedOnly(config?.target),
+      ...providedOnly(config?.target),
       model: this.models.target,
     };
 
     this.strategist = createStrategist({
       apiKey,
       model: this.config.attackerModel,
-      ...definedOnly(config?.strategist),
+      ...providedOnly(config?.strategist),
     });
     this.attacker = createAttacker({
       maxBranchingFactor: this.config.branchingFactor,
       maxTreeDepth: this.config.maxTreeDepth,
       pruningThreshold: this.config.pruningThreshold,
       apiKey,
-      ...definedOnly(config?.attacker),
+      ...providedOnly(config?.attacker),
       model: this.models.attacker,
     });
     this.evaluator = createEvaluator({
       apiKey,
-      ...definedOnly(config?.evaluator),
+      ...providedOnly(config?.evaluator),
       model: this.models.evaluator,
     });
     this.mutator = createMutator({
       apiKey,
       model: this.config.attackerModel,
-      ...definedOnly(config?.mutator),
+      ...providedOnly(config?.mutator),
     });
 
     if (this.config.enableInspector) {
@@ -1520,6 +1526,14 @@ export async function runSecurityScan(
     onInjectionResult?: (result: InjectionTestResult) => Promise<void>;
   },
 ): Promise<ScanResult> {
+  // Each flag drives two engine options with different defaults (the
+  // inspector is on, fingerprinting is off), so resolve it once here or an
+  // omitted flag would turn on only half of it.
+  const enableInspector =
+    options?.enableInspector ?? DEFAULT_CONFIG.enableInspector;
+  const enableOrchestrator =
+    options?.enableOrchestrator ?? DEFAULT_CONFIG.enableMultiTurnOrchestrator;
+
   const engine = new ScanEngine({
     apiKey: options?.apiKey,
     scan: {
@@ -1528,10 +1542,10 @@ export async function runSecurityScan(
       targetModel: options?.targetModel,
       evaluatorModel: options?.evaluatorModel,
       injectionEvaluatorModel: options?.injectionEvaluatorModel,
-      enableInspector: options?.enableInspector,
-      enableMultiTurnOrchestrator: options?.enableOrchestrator,
-      enableAdaptiveTemperature: options?.enableOrchestrator,
-      enableDefenseFingerprinting: options?.enableInspector,
+      enableInspector,
+      enableMultiTurnOrchestrator: enableOrchestrator,
+      enableAdaptiveTemperature: enableOrchestrator,
+      enableDefenseFingerprinting: enableInspector,
       enableDualMode: options?.enableDualMode,
       scanMode: options?.scanMode,
       orchestratorPattern: options?.orchestratorPattern,

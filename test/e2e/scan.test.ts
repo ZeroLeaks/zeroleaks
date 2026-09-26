@@ -9,7 +9,10 @@ import {
   setDefaultTimeout,
   test,
 } from "bun:test";
+import { version as packageVersion } from "../../package.json";
+import { DEFAULT_MODELS } from "../../src/agents/engine";
 import {
+  LIBRARY_DEFAULTS,
   LIBRARY_SCAN,
   MOCK_MODEL_FLAGS,
   resetArtifacts,
@@ -17,7 +20,12 @@ import {
   SYSTEM_PROMPT,
   writeSummary,
 } from "./harness";
-import { type GraderBehavior, LOCAL_MOCK_MODELS } from "./mock-llm";
+import {
+  type GraderBehavior,
+  LOCAL_MOCK_MODELS,
+  MOCK_MODELS,
+  type MockRequest,
+} from "./mock-llm";
 
 setDefaultTimeout(30_000);
 beforeAll(resetArtifacts);
@@ -190,6 +198,14 @@ describe("command-line usage", () => {
 
     expect(help.exitCode).toBe(0);
     expect(version.exitCode).toBe(0);
+  });
+
+  test("--version prints the version in package.json", async () => {
+    const run = await runCli("version matches package", { target: "refuse" }, [
+      "--version",
+    ]);
+
+    expect(run.stdout.trim()).toBe(packageVersion);
   });
 });
 
@@ -526,6 +542,16 @@ describe("library callbacks", () => {
   }
 });
 
+/** The model the scan banner names for a role. */
+function bannerModel(stdout: string, label: string): string | undefined {
+  return stdout.match(new RegExp(`${label}\\s+(\\S+)`))?.[1];
+}
+
+/** The inspector shares the evaluator's model id, so tell it by its schema. */
+function inspectorCalls(requests: MockRequest[]): number {
+  return requests.filter((r) => r.fields.includes("strategicGuidance")).length;
+}
+
 describe("models", () => {
   test("the models named on screen are the models tested", async () => {
     // No model flags: every role falls back to its default. With no
@@ -539,8 +565,7 @@ describe("models", () => {
       "1",
     ]);
 
-    const shown = (label: string) =>
-      run.stdout.match(new RegExp(`${label}\\s+(\\S+)`))?.[1];
+    const shown = (label: string) => bannerModel(run.stdout, label);
     expect(shown("Attacker")).toBeTruthy();
     expect(run.result?.models).toMatchObject({
       attacker: shown("Attacker"),
@@ -553,6 +578,83 @@ describe("models", () => {
       expect([shown("Target"), shown("Evaluator")]).toContain(model);
     }
     expect(run.exitCode).toBe(EXIT.inconclusive);
+  });
+
+  test("an empty model flag runs the default the banner names", async () => {
+    // What `--attacker-model "$ATTACKER_MODEL"` passes when the variable is unset.
+    const run = await runCli(
+      "empty attacker model flag",
+      { target: "refuse", evaluator: EVALUATOR_CLEAN },
+      [
+        ...SCAN,
+        "--mode",
+        "extraction",
+        "--turns",
+        "1",
+        "--attacker-model",
+        "",
+        "--target-model",
+        MOCK_MODELS.target,
+        "--evaluator-model",
+        MOCK_MODELS.evaluator,
+      ],
+    );
+
+    expect(bannerModel(run.stdout, "Attacker")).toBe(DEFAULT_MODELS.attacker);
+    expect(run.result?.models.attacker).toBe(DEFAULT_MODELS.attacker);
+    // The mock serves only the target and evaluator ids passed above.
+    const attackerRequests = run.requests.filter((r) => r.role === "unknown");
+    expect(attackerRequests.length).toBeGreaterThan(0);
+    for (const request of attackerRequests) {
+      expect(request.model).toBe(DEFAULT_MODELS.attacker);
+    }
+  });
+
+  test("runSecurityScan runs the default models it reports", async () => {
+    const run = await runCli(
+      "library default models",
+      { target: "refuse" },
+      ["default"],
+      { script: LIBRARY_DEFAULTS },
+    );
+
+    const defaults = { ...DEFAULT_MODELS, judge: DEFAULT_MODELS.evaluator };
+    expect(run.result?.models).toEqual(defaults);
+    expect(run.requests.length).toBeGreaterThan(0);
+    for (const request of run.requests) {
+      expect(Object.values<string>(defaults)).toContain(request.model);
+    }
+  });
+});
+
+describe("inspector", () => {
+  const scenario = { target: "refuse", evaluator: EVALUATOR_CLEAN } as const;
+
+  test("the CLI fingerprints every extraction turn unless --no-inspector", async () => {
+    const on = await runCli("cli inspector default", scenario, [
+      ...EXTRACTION,
+      "--turns",
+      "2",
+    ]);
+    const off = await runCli("cli inspector off", scenario, [
+      ...EXTRACTION,
+      "--turns",
+      "2",
+      "--no-inspector",
+    ]);
+
+    expect(on.result?.coverage.extraction?.completed).toBe(2);
+    expect(inspectorCalls(on.requests)).toBe(2);
+    expect(inspectorCalls(off.requests)).toBe(0);
+  });
+
+  test("runSecurityScan fingerprints every turn when enableInspector is left out", async () => {
+    const run = await runCli("library inspector default", scenario, ["mock"], {
+      script: LIBRARY_DEFAULTS,
+    });
+
+    expect(run.result?.coverage.extraction?.completed).toBe(2);
+    expect(inspectorCalls(run.requests)).toBe(2);
   });
 });
 

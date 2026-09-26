@@ -11,6 +11,7 @@ import {
 const REPO_ROOT = resolve(import.meta.dir, "../..");
 const CLI_PATH = join(REPO_ROOT, "src/bin/cli.ts");
 export const LIBRARY_SCAN = join(REPO_ROOT, "test/e2e/library-scan.ts");
+export const LIBRARY_DEFAULTS = join(REPO_ROOT, "test/e2e/library-defaults.ts");
 const ARTIFACTS_DIR = join(REPO_ROOT, "test/e2e/artifacts");
 
 export const SYSTEM_PROMPT =
